@@ -226,7 +226,6 @@
     <script>
         function transaksiKasir() {
             return {
-                
                 barisTabel: [], activeRow: 0,
                 modalBayarOpen: false, modalPencarianOpen: false, searchResultsModal: [], activeModalIndex: 0,
                 barisYangSedangDiisi: null, uangDiterima: '', kembalian: 0, modalHapusOpen: false, indexBarisHapus: null, namaBarangHapus: '',
@@ -234,7 +233,6 @@
 
                 init() {
                     this.tambahBarisBaru();
-                    // Hapus listener window.addEventListener manual, gunakan handleGlobalKey di @keydown.window saja
                 },
 
                 handleGlobalKey(e) {
@@ -246,7 +244,6 @@
                         return;
                     }
                     if (this.modalBayarOpen) { 
-                        // Enter = Simpan & Cetak (Default)
                         if (e.key === 'Enter' && !this.isProcessing) { e.preventDefault(); this.prosesBayar(true); } 
                         else if (e.key === 'Escape') { this.modalBayarOpen = false; } 
                         return; 
@@ -257,48 +254,42 @@
                 },
 
                 sanitizeQty(index, el) {
-                    // 1. Bersihkan huruf (Hanya Angka)
                     let val = el.value.replace(/[^0-9]/g, '');
                     if (val === '') val = '';
                     
-                    // --- PERBAIKAN DISINI: Validasi Stok ---
                     const baris = this.barisTabel[index];
                     const qtyInput = parseInt(val) || 0;
                     
-                    // Cari opsi satuan yang sedang dipilih untuk cek stoknya
+                    // Validasi Stok
                     const opsi = baris.opsi_satuan.find(o => o.id == baris.id_satuan);
-
-                    if (opsi && opsi.stok) {
-                        // Ubah format stok (misal "1.000" atau "10,50") menjadi angka murni
+                    if (opsi) {
                         let stokStr = opsi.stok.toString(); 
                         let stokTersedia = parseFloat(stokStr.replace(/\./g, '').replace(',', '.'));
 
                         if (qtyInput > stokTersedia) {
                             alert(`Stok tidak cukup! Sisa hanya: ${stokStr} ${opsi.nama}`);
-                            val = Math.floor(stokTersedia); // Reset ke jumlah maksimal
+                            val = Math.floor(stokTersedia); 
                         }
                     }
-                    // ---------------------------------------
 
-                    // Update data tabel
                     this.barisTabel[index].qty = val;
                     this.hitungSubtotal(index);
                 },
 
                 hitungSubtotal(index) {
                     const baris = this.barisTabel[index];
-                    // Pastikan qty adalah angka valid, jika kosong anggap 0
-                    let qty = parseInt(baris.qty);
-                    if (isNaN(qty)) qty = 0;
-                    
+                    let qty = parseInt(baris.qty) || 0;
                     baris.subtotal = qty * baris.harga;
                 },
 
+                // --- PERBAIKAN TOTAL BAYAR DI SINI ---
                 get grandTotal() {
-                    return this.barisTabel.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+                    // Sebelumnya salah panggil variabel 'item', sekarang sudah benar 'baris'
+                    return this.barisTabel.reduce((sum, baris) => sum + (baris.subtotal || 0), 0);
                 },
+                // -------------------------------------
 
-                // ... (NAVIGASI & SCAN - TIDAK BERUBAH) ...
+                // ... (FUNGSI LAIN TETAP SAMA) ...
                 fokusBawah(index, colName) { if (this.modalPencarianOpen) return; const nextIndex = index + 1; if (nextIndex < this.barisTabel.length) { this.activeRow = nextIndex; document.getElementById(colName + '_' + nextIndex)?.focus(); } else { this.tambahBarisBaru(); } },
                 fokusAtas(index, colName) { if (this.modalPencarianOpen) return; if (index > 0) { this.activeRow = index - 1; document.getElementById(colName + '_' + (index - 1))?.focus(); } },
                 fokusKanan(index, nextCol) { if (this.modalPencarianOpen) return; document.getElementById(nextCol + '_' + index)?.focus(); },
@@ -309,36 +300,76 @@
                 tambahBarisBaru() { this.barisTabel.push({ id_temp: Date.now() + Math.random(), kode_item: '', id_produk_final: '', nama_barang: '', qty: 1, id_satuan: '', harga: 0, subtotal: 0, opsi_satuan: [], error: '' }); this.activeRow = this.barisTabel.length - 1; this.$nextTick(() => { document.getElementById('kode_' + this.activeRow)?.focus(); }); },
                 hapusBaris(index) { const baris = this.barisTabel[index]; if (!baris.nama_barang || baris.nama_barang === '') { this.barisTabel.splice(index, 1); if (this.barisTabel.length === 0) this.tambahBarisBaru(); if (this.activeRow >= this.barisTabel.length) this.activeRow = this.barisTabel.length - 1; this.$nextTick(() => document.getElementById('kode_' + this.activeRow)?.focus()); return; } this.indexBarisHapus = index; this.namaBarangHapus = baris.nama_barang; this.modalHapusOpen = true; this.$nextTick(() => document.getElementById('btn-hapus-tidak').focus()); },
                 konfirmasiHapus() { if (this.indexBarisHapus !== null) { this.barisTabel.splice(this.indexBarisHapus, 1); if (this.barisTabel.length === 0) this.tambahBarisBaru(); if (this.activeRow >= this.barisTabel.length) this.activeRow = this.barisTabel.length - 1; this.$nextTick(() => document.getElementById('kode_' + this.activeRow)?.focus()); } this.modalHapusOpen = false; },
-                async scanProduk(index) { if (this.modalPencarianOpen || this.modalHapusOpen) return; const baris = this.barisTabel[index]; const kode = baris.kode_item; if (kode.length < 2) return; if (baris.id_produk_final) return; try { const response = await fetch(`{{ route('kasir.transaksi.cariProduk') }}?search=${kode}`); const data = await response.json(); if (data.length === 0) { baris.error = 'Produk tidak ditemukan!'; baris.nama_barang = ''; } else if (data.length === 1) { this.isiBaris(index, data, data[0]); } else { this.searchResultsModal = data; this.activeModalIndex = 0; this.barisYangSedangDiisi = index; this.modalPencarianOpen = true; } } catch (error) { console.error(error); } },
+                
+                async scanProduk(index) {
+                    if (this.modalPencarianOpen || this.modalHapusOpen) return;
+                    const baris = this.barisTabel[index];
+                    const kode = baris.kode_item;
+                    if (kode.length < 2) return;
+                    if (baris.id_produk_final) return;
+
+                    try {
+                        const response = await fetch(`{{ route('kasir.transaksi.cariProduk') }}?search=${kode}`);
+                        const data = await response.json();
+
+                        if (data.length === 0) {
+                            baris.error = 'Produk tidak ditemukan!';
+                            baris.nama_barang = '';
+                        } else if (data.length === 1) {
+                            // Validasi Stok Scan Langsung
+                            let stok = this.parseStokString(data[0].stok_real);
+                            if (stok <= 0) {
+                                alert('Stok Habis (0)! Barang tidak bisa dipilih.');
+                                baris.kode_item = ''; 
+                                return;
+                            }
+                            this.isiBaris(index, data, data[0]);
+                        } else {
+                            this.searchResultsModal = data;
+                            this.activeModalIndex = 0;
+                            this.barisYangSedangDiisi = index;
+                            this.modalPencarianOpen = true;
+                        }
+                    } catch (error) { console.error(error); }
+                },
+
                 isiBaris(index, semuaOpsi, produkTerpilih) {
                     const baris = this.barisTabel[index];
                     baris.id_produk_final = produkTerpilih.id_produk;
                     baris.kode_item = produkTerpilih.id_produk;
                     baris.nama_barang = produkTerpilih.nama_produk;
-                    
-                    // --- PERBAIKAN DISINI: Simpan juga data 'stok' ---
                     baris.opsi_satuan = semuaOpsi.filter(p => p.id_produk === produkTerpilih.id_produk).map(p => ({ 
-                        id: p.id_satuan, 
-                        nama: p.nama_satuan, 
-                        harga: p.harga_jual,
-                        stok: p.stok_real // <--- TAMBAHAN PENTING: Simpan stok
+                        id: p.id_satuan, nama: p.nama_satuan, harga: p.harga_jual, stok: p.stok_real 
                     }));
-                    // -----------------------------------------------
-
                     baris.id_satuan = produkTerpilih.id_satuan;
                     baris.harga = produkTerpilih.harga_jual;
                     baris.error = '';
-                    
                     this.hitungSubtotal(index);
                     this.$nextTick(() => { document.getElementById('qty_' + index)?.focus(); });
                     if (index === this.barisTabel.length - 1) { this.tambahBarisBaru(); }
                 },
-                pilihProdukDariModal(produk) { if (this.barisYangSedangDiisi !== null) { this.isiBaris(this.barisYangSedangDiisi, this.searchResultsModal, produk); this.modalPencarianOpen = false; this.searchResultsModal = []; this.barisYangSedangDiisi = null; } },
+
+                pilihProdukDariModal(produk) {
+                    // Validasi Stok Modal
+                    let stok = this.parseStokString(produk.stok_real);
+                    if (stok <= 0) {
+                        alert('Stok Habis (0)! Barang tidak bisa dipilih.');
+                        return; 
+                    }
+
+                    if (this.barisYangSedangDiisi !== null) {
+                        this.isiBaris(this.barisYangSedangDiisi, this.searchResultsModal, produk);
+                        this.modalPencarianOpen = false;
+                        this.searchResultsModal = [];
+                        this.barisYangSedangDiisi = null;
+                    }
+                },
+
                 updateHarga(index) { const baris = this.barisTabel[index]; const opsi = baris.opsi_satuan.find(o => o.id == baris.id_satuan); if (opsi) { baris.harga = opsi.harga; this.hitungSubtotal(index); } },
                 
-                // ... (BAYAR LOGIC) ...
                 bukaModalBayar() { if (this.grandTotal <= 0) { alert('Keranjang kosong!'); return; } this.modalBayarOpen = true; this.uangDiterima = ''; this.kembalian = 0; this.$nextTick(() => document.getElementById('input-bayar').focus()); },
                 hitungKembalian() { this.kembalian = (this.uangDiterima || 0) - this.grandTotal; },
+                
                 async prosesBayar(cetakStruk = false) {
                     if (this.isProcessing) return;
                     if (this.uangDiterima < this.grandTotal) { alert('Uang kurang!'); return; }
@@ -361,8 +392,10 @@
                         }
                     } catch (error) { console.error(error); alert('Terjadi kesalahan sistem.'); this.isProcessing = false; }
                 },
+                
                 resetForm() { if(confirm('Hapus semua?')) { this.barisTabel = []; this.tambahBarisBaru(); } },
-                formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka); }
+                formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka); },
+                parseStokString(str) { return parseFloat(str.toString().replace(/\./g, '').replace(',', '.')) || 0; }
             }
         }
     </script>
