@@ -161,21 +161,63 @@
 
         {{-- MODAL PENCARIAN --}}
         <div x-show="modalPencarianOpen" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-50 flex items-center justify-center" x-transition x-cloak>
-            <div class="relative mx-auto p-0 border w-full max-w-3xl shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[80vh] flex flex-col" @click.away="modalPencarianOpen = false">
-                <div class="p-4 bg-blue-600 text-white rounded-t-md flex justify-between items-center"><h3 class="text-xl font-bold">Pilih Item (Enter)</h3><button @click="modalPencarianOpen = false" class="text-white hover:text-gray-200 text-2xl">&times;</button></div>
+            <div class="relative mx-auto p-0 border w-full max-w-3xl shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[80vh] flex flex-col" 
+                 @click.away="modalPencarianOpen = false">
+                
+                <div class="p-4 bg-blue-600 text-white rounded-t-md flex justify-between items-center">
+                    <h3 class="text-xl font-bold">Pilih Item (Enter)</h3>
+                    <button @click="modalPencarianOpen = false" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+                
+                {{-- FITUR BARU: SEARCH BAR DALAM MODAL --}}
+                <div class="p-3 bg-gray-100 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
+                    <input type="text" 
+                           x-model="searchQueryModal" 
+                           @keydown.enter.prevent="searchProdukInModal()" {{-- <-- Panggil Fungsi Search Baru --}}
+                           @keydown.arrow-down.prevent="$el.blur(); navigasiModal('bawah')"
+                           @keydown.arrow-up.prevent="$el.blur(); navigasiModal('atas')"
+                           class="w-full border-gray-300 dark:border-gray-600 rounded-md p-2 text-sm focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="Cari Nama/Kode Item (Tekan Enter)..."
+                           autofocus>
+                </div>
+                {{-- -------------------------------------- --}}
+
                 <div class="overflow-y-auto flex-1" id="modal-list-container">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th>Kode</th><th>Nama</th><th>Satuan</th><th>Stok</th><th>Harga</th></tr></thead>
+                        <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Kode</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Nama Barang</th>
+                                <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Satuan</th>
+                                <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Stok</th>
+                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-500 uppercase">Harga Jual</th>
+                            </tr>
+                        </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            {{-- Ubah sumber data ke 'filteredModalItems' --}}
                             <template x-for="(produk, index) in searchResultsModal" :key="produk.unique_id">
-                                <tr :id="'modal-row-' + index" :class="activeModalIndex === index ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-50 dark:hover:bg-gray-700'" class="cursor-pointer transition-colors" @click="pilihProdukDariModal(produk)" @mouseover="activeModalIndex = index">
-                                    <td class="px-4 py-3 text-sm font-mono text-gray-600" x-text="produk.id_produk"></td><td class="px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200" x-text="produk.nama_produk"></td><td class="px-4 py-3 text-center"><span class="px-2 py-1 bg-gray-200 rounded text-xs font-bold" x-text="produk.nama_satuan"></span></td><td class="px-4 py-3 text-center text-sm font-bold" :class="parseFloat(produk.stok_real.replace(',', '.')) > 0 ? 'text-green-600' : 'text-red-600'" x-text="produk.stok_real"></td><td class="px-4 py-3 text-right font-mono text-blue-600 font-bold" x-text="formatRupiah(produk.harga_jual)"></td>
+                                <tr :id="'modal-row-' + index"
+                                    :class="activeModalIndex === index ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-50 dark:hover:bg-gray-700'"
+                                    class="cursor-pointer transition-colors" 
+                                    @click="pilihProdukDariModal(produk)"
+                                    @mouseover="activeModalIndex = index">
+                                    
+                                    <td class="px-4 py-3 text-sm font-mono text-gray-600" x-text="produk.id_produk"></td>
+                                    <td class="px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200" x-text="produk.nama_produk"></td>
+                                    <td class="px-4 py-3 text-center"><span class="px-2 py-1 bg-gray-200 rounded text-xs font-bold" x-text="produk.nama_satuan"></span></td>
+                                    <td class="px-4 py-3 text-center text-sm font-bold" :class="parseFloat(produk.stok_real.replace(',', '.')) > 0 ? 'text-green-600' : 'text-red-600'" x-text="produk.stok_real"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-blue-600 font-bold" x-text="formatRupiah(produk.harga_jual)"></td>
                                 </tr>
                             </template>
+                            
+                            
                         </tbody>
                     </table>
                 </div>
-                <div class="p-3 border-t bg-gray-50 text-right rounded-b-lg"><button @click="modalPencarianOpen = false" class="px-4 py-2 bg-gray-500 text-white rounded text-sm">Tutup [ESC]</button></div>
+                <div class="p-3 border-t bg-gray-50 text-right rounded-b-lg flex justify-between items-center">
+                    <span class="text-xs text-gray-500">Gunakan <span class="font-bold">↑ ↓</span> untuk memilih, <span class="font-bold">Enter</span> untuk OK</span>
+                    <button @click="modalPencarianOpen = false" class="px-4 py-2 bg-gray-500 text-white rounded text-sm">Tutup [ESC]</button>
+                </div>
             </div>
         </div>
 
@@ -231,9 +273,35 @@
                 barisYangSedangDiisi: null, uangDiterima: '', kembalian: 0, modalHapusOpen: false, indexBarisHapus: null, namaBarangHapus: '',
                 isProcessing: false,
 
+                searchQueryModal: '',
+
                 init() {
                     this.tambahBarisBaru();
                 },
+                async searchProdukInModal() {
+                    if (this.searchQueryModal.length < 2) return;
+                    
+                    // Tampilkan loading (opsional, bisa pakai text 'Mencari...')
+                    this.searchResultsModal = []; 
+                    
+                    try {
+                        // Panggil API yang SAMA dengan scan utama
+                        const response = await fetch(`{{ route('kasir.transaksi.cariProduk') }}?search=${this.searchQueryModal}`);
+                        const data = await response.json();
+                        
+                        // Update isi tabel modal dengan hasil baru dari database
+                        this.searchResultsModal = data;
+                        this.activeModalIndex = 0; // Reset pilihan ke paling atas
+
+                        if (data.length === 0) {
+                            // Opsional: Beri tahu jika kosong
+                            // alert('Tidak ditemukan');
+                        }
+                    } catch (error) { 
+                        console.error(error); 
+                    }
+                },
+                
 
                 handleGlobalKey(e) {
                     if (this.modalPencarianOpen) {
@@ -251,6 +319,17 @@
                     if (this.modalHapusOpen) { if (e.key === 'ArrowRight') document.getElementById('btn-hapus-ya').focus(); else if (e.key === 'ArrowLeft') document.getElementById('btn-hapus-tidak').focus(); else if (e.key === 'Escape') this.modalHapusOpen = false; return; }
                     if (e.key === 'End') { e.preventDefault(); this.bukaModalBayar(); }
                     if (e.key === 'F2') { e.preventDefault(); this.tambahBarisBaru(); }
+                },
+                navigasiModal(arah) { 
+                    // Gunakan filteredModalItems, bukan searchResultsModal
+                    const items = this.filteredModalItems; 
+                    if (arah === 'bawah') { 
+                        if (this.activeModalIndex < items.length - 1) this.activeModalIndex++; 
+                        this.scrollToModalItem(); 
+                    } else if (arah === 'atas') { 
+                        if (this.activeModalIndex > 0) this.activeModalIndex--; 
+                        this.scrollToModalItem(); 
+                    } 
                 },
 
                 sanitizeQty(index, el) {
