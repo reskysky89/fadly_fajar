@@ -318,8 +318,8 @@
                         } else if (data.length === 1) {
                             // Validasi Stok Scan Langsung
                             let stok = this.parseStokString(data[0].stok_real);
-                            if (stok <= 0) {
-                                alert('Stok Habis (0)! Barang tidak bisa dipilih.');
+                            if (stok < 1) {
+                                alert('Stok Tidak Cukup (Kurang dari 1)! Sisa: ' + data[0].stok_real);
                                 baris.kode_item = ''; 
                                 return;
                             }
@@ -352,8 +352,8 @@
                 pilihProdukDariModal(produk) {
                     // Validasi Stok Modal
                     let stok = this.parseStokString(produk.stok_real);
-                    if (stok <= 0) {
-                        alert('Stok Habis (0)! Barang tidak bisa dipilih.');
+                    if (stok < 1) {
+                        alert('Stok Tidak Cukup (Kurang dari 1)! Sisa: ' + produk.stok_real);
                         return; 
                     }
 
