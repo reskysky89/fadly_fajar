@@ -20,8 +20,9 @@ class TransaksiController extends Controller
         $today = date('ymd');
         $random = rand(100, 999);
         $nextId = "TRX-{$today}-{$random}";
+        $pelanggans = User::where('role_user', 'pelanggan')->orderBy('nama')->get();
 
-        return view('kasir.transaksi.create', compact('nextId'));
+        return view('kasir.transaksi.create', compact('nextId','pelanggans'));
     }
 
     // API untuk pencarian produk di kasir (Scan Barcode)
@@ -198,6 +199,71 @@ class TransaksiController extends Controller
                 'message' => 'Gagal menyimpan: ' . $e->getMessage()
             ], 500);
         }
+    }
+    public function riwayat(Request $request)
+    {
+        $query = Transaksi::with('kasir')
+                    ->where('tipe_transaksi', 'penjualan')
+                    ->where('status_pesanan', 'selesai')
+                    ->orderBy('created_at', 'desc'); 
+
+        // --- LOGIKA FILTER TANGGAL ---
+        
+        // A. Jika User Memilih Tanggal Sendiri (Bisa lihat data lama)
+        if ($request->filled('tanggal_mulai') && $request->filled('tanggal_akhir')) {
+            $query->whereBetween('tanggal_transaksi', [
+                $request->tanggal_mulai, 
+                $request->tanggal_akhir
+            ]);
+        } 
+        // B. DEFAULT: Jika tidak ada filter, hanya tampilkan 2x24 Jam (2 Hari Terakhir)
+        else {
+            $duaHariLalu = \Carbon\Carbon::now()->subDays(1)->format('Y-m-d');
+            // Ambil transaksi dari 2 hari lalu sampai sekarang
+            $query->whereDate('tanggal_transaksi', '>=', $duaHariLalu);
+        }
+        // -----------------------------
+
+        // Filter Pencarian (ID Transaksi) - Tetap bisa mencari di luar tanggal default
+        if ($request->filled('search')) {
+            // Jika sedang mencari ID tertentu, kita abaikan batasan tanggal default
+            // agar riwayat lama pun bisa ketemu jika ID-nya diketik
+            $query->orWhere('id_transaksi', 'like', '%' . $request->search . '%');
+        }
+
+        $riwayat = $query->paginate(10);
+        $riwayat->appends($request->all());
+
+        // AJAX Response (Infinite Scroll)
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('kasir.transaksi.riwayat_body', compact('riwayat'))->render(),
+                'next_page_url' => $riwayat->nextPageUrl()
+            ]);
+        }
+
+        return view('kasir.transaksi.riwayat', compact('riwayat'));
+    }
+    // Ambil Detail Transaksi (JSON untuk Modal)
+    public function show(Request $request)
+    {
+        // Ambil ID dari parameter ?id=...
+        $id = $request->query('id'); 
+        
+        if (!$id) return response()->json(['error' => 'ID tidak ditemukan'], 404);
+
+        $transaksi = Transaksi::with(['details.produk', 'kasir'])->where('id_transaksi', $id)->firstOrFail();
+        return response()->json($transaksi);
+    }
+
+    // Cetak Struk (Tampilan HTML Khusus Print)
+   public function cetak(Request $request)
+    {
+        // Ambil ID dari parameter ?id=...
+        $id = $request->query('id');
+
+        $transaksi = Transaksi::with(['details.produk', 'kasir'])->where('id_transaksi', $id)->firstOrFail();
+        return view('kasir.transaksi.struk', compact('transaksi'));
     }
     
     // Fungsi Store akan kita buat setelah View selesai

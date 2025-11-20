@@ -23,6 +23,15 @@
                         <div class="font-mono font-bold text-lg text-gray-800 dark:text-gray-200 bg-gray-50 p-2 rounded border">{{ $nextId }}</div>
                     </div>
                     <div>
+                        <label class="block text-xs text-gray-500 uppercase font-bold">Pelanggan</label>
+                        <select x-model="id_pelanggan" class="w-full font-bold bg-gray-50 border-gray-300 rounded text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
+                            <option value="">UMUM </option>
+                            @foreach($pelanggans as $pelanggan)
+                                <option value="{{ $pelanggan->id_user }}">{{ $pelanggan->nama }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
                         <label class="block text-xs text-gray-500 uppercase font-bold">Kasir</label>
                         <div class="font-bold text-gray-800 dark:text-gray-200 mt-2">{{ Auth::user()->nama }}</div>
                     </div>
@@ -454,7 +463,22 @@
                     if (this.uangDiterima < this.grandTotal) { alert('Uang kurang!'); return; }
                     
                     this.isProcessing = true;
-                    const payload = { total_harga: this.grandTotal, bayar: this.uangDiterima, kembalian: this.kembalian, cetak: cetakStruk, items: this.barisTabel.filter(b => b.id_produk_final).map(item => ({ id_produk: item.id_produk_final, qty: item.qty, satuan: item.opsi_satuan.find(o => o.id == item.id_satuan)?.nama || 'PCS', harga: item.harga, subtotal: item.subtotal })) };
+                    const payload = {
+                        id_pelanggan: this.id_pelanggan, 
+                        
+                        id_transaksi: "{{ $nextId }}", 
+                        total_harga: this.grandTotal, 
+                        bayar: this.uangDiterima, 
+                        kembalian: this.kembalian, 
+                        cetak: cetakStruk, 
+                        items: this.barisTabel.filter(b => b.id_produk_final).map(item => ({ 
+                            id_produk: item.id_produk_final, 
+                            qty: item.qty, 
+                            satuan: item.opsi_satuan.find(o => o.id == item.id_satuan)?.nama || 'PCS', 
+                            harga: item.harga, 
+                            subtotal: item.subtotal 
+                        })) 
+                    }; 
                     
                     if (payload.items.length === 0) { alert('Belum ada barang!'); this.isProcessing = false; return; }
                     try {

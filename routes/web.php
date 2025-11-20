@@ -91,6 +91,10 @@ Route::middleware(['auth', 'verified'])->prefix('kasir')->name('kasir.')->group(
         return redirect()->route('kasir.transaksi.index');
     })->name('dashboard');
 
+    Route::get('/riwayat', [TransaksiController::class, 'riwayat'])->name('riwayat.index');
+    Route::get('/transaksi/detail', [TransaksiController::class, 'show'])->name('transaksi.show');
+    Route::get('/transaksi/cetak', [TransaksiController::class, 'cetak'])->name('transaksi.cetak');
+
 });
 
 // --- AKHIR BLOK KODE BARU --- //
