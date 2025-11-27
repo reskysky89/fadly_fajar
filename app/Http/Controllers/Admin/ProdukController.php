@@ -20,76 +20,73 @@ class ProdukController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Mulai query
+        // 1. Mulai query dengan eager loading
         $query = Produk::with(['kategori', 'supplier', 'satuanDasar']);
 
-        // 2. Pencarian
+        // 2. Logika Pencarian (Diperbarui)
         if ($request->has('search') && $request->search != '') {
             $search = $request->search;
+            
             $query->where(function($q) use ($search) {
                 $q->where('nama_produk', 'like', '%' . $search . '%')
-                  ->orWhere('id_produk', 'like', '%' . $search . '%');
+                  ->orWhere('id_produk', 'like', '%' . $search . '%')
+                  // --- TAMBAHAN BARU DI SINI ---
+                  ->orWhereHas('supplier', function($subQuery) use ($search) {
+                      $subQuery->where('nama_supplier', 'like', '%' . $search . '%');
+                  });
+                  // -----------------------------
             });
         }
 
         // 3. Ambil Data
         $produks = $query->latest()->paginate(10);
         
-        // 4. Load Relasi Penting
+        // 4. Load Relasi untuk Kalkulasi Stok
         $produks->load([
-            'produkKonversis.satuan', // Data konversi (DUS -> PCS)
-            'stokMasukDetails',       // Riwayat Stok Masuk
-            'detailTransaksis'        // Riwayat Penjualan (Stok Keluar)
+            'produkKonversis.satuan', 
+            'stokMasukDetails',       
+            'detailTransaksis'        
         ]);
 
-        // 5. KALKULASI STOK REAL-TIME (Masuk - Keluar)
+        // 5. KALKULASI STOK REAL-TIME (Sama seperti sebelumnya)
         $produks->getCollection()->transform(function ($produk) {
             $satuan_dasar_nama = strtoupper($produk->satuanDasar->nama_satuan ?? 'PCS');
             
-            // --- A. HITUNG TOTAL STOK MASUK (Dalam PCS) ---
+            // A. Hitung Stok Masuk
             $total_masuk_pcs = 0;
             foreach ($produk->stokMasukDetails as $masuk) {
                 $jumlah = $masuk->jumlah;
                 $satuan = strtoupper($masuk->satuan);
-                
-                // Jika satuan beda dengan dasar, cari konversinya
                 if ($satuan !== $satuan_dasar_nama) {
-                    $konversi = $produk->produkKonversis->first(function ($k) use ($satuan) {
-                        return strtoupper($k->satuan->nama_satuan) === $satuan;
-                    });
-                    if ($konversi) {
-                        $jumlah = $jumlah * $konversi->nilai_konversi;
-                    }
+                    $konversi = $produk->produkKonversis->first(function ($k) use ($satuan) { return strtoupper($k->satuan->nama_satuan) === $satuan; });
+                    if ($konversi) { $jumlah = $jumlah * $konversi->nilai_konversi; }
                 }
                 $total_masuk_pcs += $jumlah;
             }
             
-            // --- B. HITUNG TOTAL STOK KELUAR / PENJUALAN (Dalam PCS) ---
+            // B. Hitung Stok Keluar
             $total_keluar_pcs = 0;
             foreach ($produk->detailTransaksis as $keluar) {
                 $jumlah = $keluar->jumlah;
                 $satuan = strtoupper($keluar->satuan);
-                
-                // Logika Konversi yang SAMA untuk Penjualan
                 if ($satuan !== $satuan_dasar_nama) {
-                    $konversi = $produk->produkKonversis->first(function ($k) use ($satuan) {
-                        return strtoupper($k->satuan->nama_satuan) === $satuan;
-                    });
-                    if ($konversi) {
-                        $jumlah = $jumlah * $konversi->nilai_konversi;
-                    }
+                    $konversi = $produk->produkKonversis->first(function ($k) use ($satuan) { return strtoupper($k->satuan->nama_satuan) === $satuan; });
+                    if ($konversi) { $jumlah = $jumlah * $konversi->nilai_konversi; }
                 }
                 $total_keluar_pcs += $jumlah;
             }
             
-            // C. Stok Akhir
             $produk->stok_saat_ini = $total_masuk_pcs - $total_keluar_pcs;
-            
             return $produk;
         });
 
         $produks->appends($request->only('search'));
         
+        // Respon untuk AJAX (Auto-Refresh)
+        if ($request->ajax()) {
+            return view('admin.produk.table_body', compact('produks'))->render();
+        }
+
         return view('admin.produk.index', compact('produks'));
     }
     public function create()
