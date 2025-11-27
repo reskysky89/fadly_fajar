@@ -165,6 +165,8 @@ class TransaksiController extends Controller
                 // -------------------------
 
                 'total_harga'       => $request->total_harga,
+                'bayar'             => $request->bayar,
+                'kembalian'         => $request->kembalian,
                 'jenis_transaksi'   => 'offline',
                 'tipe_transaksi'    => 'penjualan',
                 'status_pesanan'    => 'selesai',

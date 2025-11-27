@@ -41,6 +41,9 @@ return new class extends Migration
             $table->enum('status_pesanan', ['diproses', 'selesai', 'batal']);
 
             $table->decimal('total_harga', 12, 2);
+            $table->decimal('bayar', 12, 2)->default(0);      // Uang Konsumen
+            $table->decimal('kembalian', 12, 2)->default(0);  // Kembalian
+            // -------------------------------
 
             $table->timestamps();
         });

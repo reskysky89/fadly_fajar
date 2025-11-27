@@ -62,9 +62,21 @@
         </table>
 
         <div class="total-section">
-            <strong>Total: Rp {{ number_format($transaksi->total_harga, 0, ',', '.') }}</strong><br>
-            Bayar: Rp {{ number_format($transaksi->bayar, 0, ',', '.') }}<br>
-            Kembali: Rp {{ number_format($transaksi->kembalian, 0, ',', '.') }}
+            <div class="row-total grand-total">
+                <span>TOTAL TAGIHAN</span>
+                <span>Rp {{ number_format($transaksi->total_harga, 0, ',', '.') }}</span>
+            </div>
+            
+            {{-- TAMPILKAN BAYAR DAN KEMBALIAN --}}
+            <div class="row-total" style="margin-top: 5px;">
+                <span>Tunai / Bayar</span>
+                <span>Rp {{ number_format($transaksi->bayar, 0, ',', '.') }}</span>
+            </div>
+            
+            <div class="row-total">
+                <span>Kembali</span>
+                <span>Rp {{ number_format($transaksi->kembalian, 0, ',', '.') }}</span>
+            </div>
         </div>
 
         <div class="footer">

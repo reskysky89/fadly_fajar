@@ -28,6 +28,8 @@ class Transaksi extends Model
         'tanggal_transaksi', // <-- TAMBAHKAN INI
         'waktu_transaksi',
         'total_harga',
+        'bayar',      // <-- Pastikan ada
+        'kembalian',  // <-- Pastikan ada
         'metode_bayar',
         'status_pesanan',
         'jenis_transaksi',
