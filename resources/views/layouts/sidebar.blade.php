@@ -34,10 +34,6 @@
                class="{{ $baseClass }} {{ request()->routeIs('admin.produk.*') ? $activeClass : $inactiveClass }}">
                 Manajemen Produk
             </a>
-            <a href="{{ route('admin.satuan.index') }}" 
-               class="{{ $baseClass }} {{ request()->routeIs('admin.satuan.*') ? $activeClass : $inactiveClass }}">
-                Manajemen Satuan
-            </a>
             <a href="{{ route('admin.stok.index') }}" 
                 class="{{ $baseClass }} {{ request()->routeIs('admin.stok.*') ? $activeClass : $inactiveClass }}">
                 Manajemen Stok

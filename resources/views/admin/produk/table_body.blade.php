@@ -49,10 +49,6 @@
         {{-- Aksi --}}
         <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
             <a href="{{ route('admin.produk.edit', $produk->id_produk) }}" class="text-indigo-600 hover:text-indigo-900 font-bold mr-2">Edit</a>
-            <form action="{{ route('admin.produk.destroy', $produk->id_produk) }}" method="POST" class="inline-block">
-                @csrf @method('DELETE')
-                <button type="submit" class="text-red-600 hover:text-red-900 font-bold" onclick="return confirm('Hapus produk?')">Hapus</button>
-            </form>
         </td>
     </tr>
     
@@ -103,10 +99,7 @@
             
             <td class="px-6 py-4"></td> {{-- Status Kosong --}}
             
-            {{-- Aksi --}}
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                <a href="{{ route('admin.produk.edit', $produk->id_produk) }}" class="text-gray-400 hover:text-indigo-900 text-xs">Edit Induk</a>
-            </td>
+            
         </tr>
         
         {{-- Increment Counter --}}

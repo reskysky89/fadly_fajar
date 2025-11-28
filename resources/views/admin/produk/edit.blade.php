@@ -1,214 +1,196 @@
 <x-app-layout>
-    {{-- PERUBAHAN 1: Judul Halaman --}}
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Edit Produk: ') }} {{ $produk->nama_produk }}
+            {{ __('Edit Produk') }} : {{ $produk->nama_produk }}
         </h2>
     </x-slot>
+
+    {{-- LOGIKA PHP: SIAPKAN DATA KONVERSI --}}
+    @php
+        // 1. Cek apakah ada data inputan baru (karena error validasi)
+        $dataKonversi = old('konversi');
+
+        // 2. Jika tidak ada data baru (baru buka halaman edit), ambil dari DATABASE
+        if (!$dataKonversi) {
+            // Kita mapping agar formatnya sesuai dengan nama field di form
+            $dataKonversi = $produk->produkKonversis->map(function($item) {
+                return [
+                    'id_satuan_konversi' => $item->id_satuan_konversi,
+                    'nilai_konversi'     => $item->nilai_konversi,
+                    'harga_pokok_konversi' => $item->harga_pokok_konversi,
+                    'harga_jual_konversi'  => $item->harga_jual_konversi,
+                ];
+            });
+        }
+    @endphp
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     
-                    @if(session('error'))
-                        <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-md">
-                            {{ session('error') }}
+                    @if ($errors->any())
+                        <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+                            <strong class="font-bold">Gagal Mengupdate!</strong>
+                            <ul class="mt-2 list-disc list-inside">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
                         </div>
                     @endif
 
-                    {{-- PERUBAHAN 2: Ganti Action Route dan Tambah Method PUT --}}
                     <form action="{{ route('admin.produk.update', $produk->id_produk) }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        @method('PUT') {{-- <-- WAJIB UNTUK EDIT/UPDATE --}}
-
-                        {{-- =============================================== --}}
+                        @method('PUT')
+                        
                         {{-- 1. DATA UMUM --}}
-                        {{-- =============================================== --}}
                         <h3 class="text-lg font-semibold mb-4 border-b pb-2">Data Umum</h3>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                            
-                            {{-- PERUBAHAN 3: Isi Value & Buat Readonly --}}
+                            {{-- Kode Item (Readonly) --}}
                             <div>
-                                <x-input-label for="id_produk" :value="__('Kode Item / Barcode (Tidak Bisa Diubah)')" />
-                                <x-text-input id="id_produk" class="block mt-1 w-full bg-gray-100 dark:bg-gray-700" type="text" name="id_produk" :value="$produk->id_produk" readonly disabled />
+                                <x-input-label for="id_produk" :value="__('Kode Item (Tidak bisa diubah)')" />
+                                <x-text-input id="id_produk" class="block mt-1 w-full bg-gray-100" type="text" :value="$produk->id_produk" readonly />
                             </div>
                             
-                            {{-- PERUBAHAN 3: Isi Value --}}
+                            {{-- Nama Produk --}}
                             <div>
                                 <x-input-label for="nama_produk" :value="__('Nama Produk')" />
                                 <x-text-input id="nama_produk" class="block mt-1 w-full" type="text" name="nama_produk" :value="old('nama_produk', $produk->nama_produk)" required />
-                                <x-input-error :messages="$errors->get('nama_produk')" class="mt-2" />
                             </div>
                             
-                            {{-- BLOK KATEGORI (Kode modal tetap sama) --}}
-                            <div x-data="{ modalOpen: false }"> 
-                                <x-input-label for="id_kategori_dropdown" :value="__('Kategori Produk')" />
-                                <div class="flex items-center mt-1">
-                                    {{-- PERUBAHAN 3: Isi Value (Selected) --}}
-                                    <select name="id_kategori" id="id_kategori_dropdown" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm" required>
-                                        <option value="">Pilih Kategori</option>
-                                        @foreach ($kategoris as $kategori)
-                                            <option value="{{ $kategori->id_kategori }}" {{ old('id_kategori', $produk->id_kategori) == $kategori->id_kategori ? 'selected' : '' }}>
-                                                {{ $kategori->nama_kategori }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" @click="modalOpen = true" class="ml-2 flex-shrink-0 ...">+</button>
-                                </div>
-                                <x-input-error :messages="$errors->get('id_kategori')" class="mt-2" />
-                                
-                                {{-- Modal Kategori (Biarkan kodenya sama persis) --}}
-                                <div x-show="modalOpen" x-transition class="fixed inset-0 ... z-50" @click.away="modalOpen = false" x-cloak>
-                                    <div @click.stop class="relative mx-auto p-6 ... bg-white dark:bg-gray-800">
-                                        <h3 class="text-xl ... mb-4">Tambah Kategori Cepat</h3>
-                                        <div id="quick-add-kategori-form">
-                                            {{-- ... (Isi modal Kategori, tidak perlu diubah) ... --}}
-                                        </div>
-                                    </div>
-                                </div>
+                            {{-- Kategori --}}
+                            <div>
+                                <x-input-label for="id_kategori" :value="__('Kategori Produk')" />
+                                <select name="id_kategori" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                    <option value="">Pilih Kategori</option>
+                                    @foreach ($kategoris as $kategori)
+                                        <option value="{{ $kategori->id_kategori }}" {{ old('id_kategori', $produk->id_kategori) == $kategori->id_kategori ? 'selected' : '' }}>
+                                            {{ $kategori->nama_kategori }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            {{-- BLOK SUPPLIER (Kode modal tetap sama) --}}
-                            <div x-data="{ modalOpen: false }"> 
-                                <x-input-label for="id_supplier_dropdown" :value="__('Supplier')" />
-                                <div class="flex items-center mt-1">
-                                    {{-- PERUBAHAN 3: Isi Value (Selected) --}}
-                                    <select name="id_supplier" id="id_supplier_dropdown" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm" required>
-                                        <option value="">Pilih Supplier</option>
-                                        @foreach ($suppliers as $supplier)
-                                            <option value="{{ $supplier->id_supplier }}" {{ old('id_supplier', $produk->id_supplier) == $supplier->id_supplier ? 'selected' : '' }}>
-                                                {{ $supplier->nama_supplier }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <button type="button" @click="modalOpen = true" class="ml-2 flex-shrink-0 ...">+</button>
-                                </div>
-                                <x-input-error :messages="$errors->get('id_supplier')" class="mt-2" />
-                                
-                                {{-- Modal Supplier (Biarkan kodenya sama persis) --}}
-                                <div x-show="modalOpen" x-transition class="fixed inset-0 ... z-50" @click.away="modalOpen = false" x-cloak>
-                                    <div @click.stop class="relative mx-auto p-6 ... bg-white dark:bg-gray-800">
-                                        <h3 class="text-xl ... mb-4">Tambah Supplier Cepat</h3>
-                                        <div id="quick-add-supplier-form">
-                                            {{-- ... (Isi modal Supplier, tidak perlu diubah) ... --}}
-                                        </div>
-                                    </div>
-                                </div>
+                            {{-- Supplier --}}
+                            <div>
+                                <x-input-label for="id_supplier" :value="__('Supplier')" />
+                                <select name="id_supplier" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                    <option value="">Pilih Supplier</option>
+                                    @foreach ($suppliers as $supplier)
+                                        <option value="{{ $supplier->id_supplier }}" {{ old('id_supplier', $produk->id_supplier) == $supplier->id_supplier ? 'selected' : '' }}>
+                                            {{ $supplier->nama_supplier }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                             
                             <div class="md:col-span-2">
                                 <x-input-label for="deskripsi" :value="__('Keterangan (Opsional)')" />
-                                {{-- PERUBAHAN 3: Isi Value --}}
-                                <textarea id="deskripsi" name="deskripsi" rows="3" class="block mt-1 w-full ... rounded-md shadow-sm">{{ old('deskripsi', $produk->deskripsi) }}</textarea>
+                                <textarea id="deskripsi" name="deskripsi" rows="3" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm">{{ old('deskripsi', $produk->deskripsi) }}</textarea>
                             </div>
+                            
                             <div>
-                                <x-input-label for="gambar" :value="__('Ganti Gambar Produk (Opsional)')" />
-                                <input id="gambar" class="block mt-1 w-full ... cursor-pointer" type="file" name="gambar">
-                                {{-- Tampilkan gambar lama jika ada --}}
+                                <x-input-label for="gambar" :value="__('Ganti Gambar (Opsional)')" />
+                                <input id="gambar" class="block mt-1 w-full text-sm border border-gray-300 rounded-lg" type="file" name="gambar">
                                 @if($produk->gambar)
-                                    <img src="{{ asset('storage/'. $produk->gambar) }}" alt="{{ $produk->nama_produk }}" class="mt-2 h-20 w-20 object-cover rounded-md">
+                                    <p class="text-xs text-gray-500 mt-1">Gambar saat ini:</p>
+                                    <img src="{{ asset('storage/' . $produk->gambar) }}" alt="Gambar Produk" class="h-16 mt-1 rounded border">
                                 @endif
                             </div>
                         </div>
 
-                        {{-- =============================================== --}}
-                        {{-- 2. SATUAN & HARGA POKOK --}}
-                        {{-- =============================================== --}}
-                        {{-- PERUBAHAN 4: Isi x-data dengan konversi yang ada --}}
-                        <div x-data="{ konversis: @json(old('konversi', $produk->produkKonversis)) }">
-                            <h3 class="text-lg font-semibold mb-4 border-b pb-2">Satuan & Harga Pokok (Modal)</h3>
+                        {{-- 2. SATUAN & HARGA --}}
+                        <h3 class="text-lg font-semibold mb-4 border-b pb-2">Satuan & Harga</h3>
+                        
+                        {{-- INI BAGIAN PENTINGNYA: Masukkan $dataKonversi ke Alpine --}}
+                        <div x-data="{ konversis: {{ json_encode($dataKonversi) }} }">
                             
-                            {{-- Bagian Satuan Dasar --}}
+                            {{-- Satuan Dasar --}}
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
                                 <div>
                                     <x-input-label for="id_satuan_dasar" :value="__('Satuan Dasar (Wajib)')" />
-                                    <select name="id_satuan_dasar" id="id_satuan_dasar" class="block mt-1 w-full ... rounded-md shadow-sm" required>
-                                        <option value="">Pilih Satuan Terkecil (misal: PCS)</option>
+                                    <select name="id_satuan_dasar" id="id_satuan_dasar" class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
                                         @foreach ($satuans as $satuan)
-                                            {{-- PERUBAHAN 3: Isi Value (Selected) --}}
                                             <option value="{{ $satuan->id_satuan }}" {{ old('id_satuan_dasar', $produk->id_satuan_dasar) == $satuan->id_satuan ? 'selected' : '' }}>
                                                 {{ $satuan->nama_satuan }}
                                             </option>
                                         @endforeach
                                     </select>
-                                    <x-input-error :messages="$errors->get('id_satuan_dasar')" class="mt-2" />
                                 </div>
                                 <div>
-                                    <x-input-label for="harga_pokok_dasar" :value="__('Harga Pokok Dasar (Modal)')" />
-                                    {{-- PERUBAHAN 3: Isi Value --}}
+                                    <x-input-label for="harga_pokok_dasar" :value="__('Harga Pokok Dasar')" />
                                     <x-text-input id="harga_pokok_dasar" class="block mt-1 w-full" type="number" step="0.01" name="harga_pokok_dasar" :value="old('harga_pokok_dasar', $produk->harga_pokok_dasar)" required />
-                                    <x-input-error :messages="$errors->get('harga_pokok_dasar')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <x-input-label for="harga_jual_dasar" :value="__('Harga Jual Dasar')" />
+                                    <x-text-input id="harga_jual_dasar" class="block mt-1 w-full" type="number" step="0.01" name="harga_jual_dasar" :value="old('harga_jual_dasar', $produk->harga_jual_dasar)" required />
                                 </div>
                             </div>
     
-                            {{-- Bagian Daftar Konversi (Dinamis dengan Alpine.js) --}}
-                            <h4 class="text-md font-semibold mb-2">Daftar Konversi (Opsional)</h4>
+                            <h4 class="text-md font-semibold mb-2 mt-6">Daftar Konversi (Opsional)</h4>
+
+                            {{-- Pesan Error Konversi --}}
                             @if ($errors->has('konversi.*'))
-                                <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                                    <strong class="block mb-1">Terjadi kesalahan pada data konversi:</strong>
-                                    <ul class="list-disc list-inside text-sm">
-                                        @foreach ($errors->get('konversi.*') as $messages)
-                                            @foreach ($messages as $message)
+                                <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                                    <strong>Perbaiki Data Konversi:</strong>
+                                    <ul class="list-disc list-inside mt-1">
+                                        @foreach ($errors->get('konversi.*') as $fieldErrors)
+                                            @foreach ($fieldErrors as $message)
                                                 <li>{{ $message }}</li>
                                             @endforeach
                                         @endforeach
                                     </ul>
                                 </div>
                             @endif
+
+                            {{-- Loop Konversi --}}
                             <template x-for="(konversi, index) in konversis" :key="index">
-                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-2 p-4 border rounded-md relative">
+                                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-2 p-4 border rounded-md relative bg-gray-50 dark:bg-gray-800">
+                                    
                                     <div>
                                         <x-input-label :value="__('Satuan Konversi')" />
-                                        {{-- PERUBAHAN 5: Tambahkan x-model untuk mengisi data Alpine --}}
-                                        <select x-bind:name="'konversi[' + index + '][id_satuan_konversi]'" class="block mt-1 w-full ... rounded-md shadow-sm" required x-model="konversi.id_satuan_konversi">
-                                            <option value="">Pilih Satuan</option>
+                                        <select x-bind:name="'konversi[' + index + '][id_satuan_konversi]'" 
+                                                x-model="konversi.id_satuan_konversi"
+                                                class="block mt-1 w-full border-gray-300 rounded-md shadow-sm" required>
+                                            <option value="">Pilih...</option>
                                             @foreach ($satuans as $satuan)
                                                 <option value="{{ $satuan->id_satuan }}">{{ $satuan->nama_satuan }}</option>
                                             @endforeach
                                         </select>
                                     </div>
+
                                     <div>
-                                        <x-input-label :value="__('Nilai Konversi (x Satuan Dasar)')" />
-                                        <x-text-input type="number" x-bind:name="'konversi[' + index + '][nilai_konversi]'" class="block mt-1 w-full" required x-model="konversi.nilai_konversi" />
+                                        <x-input-label :value="__('Nilai (x Dasar)')" />
+                                        <x-text-input type="number" x-bind:name="'konversi[' + index + '][nilai_konversi]'" x-model="konversi.nilai_konversi" class="block mt-1 w-full" required />
                                     </div>
+
                                     <div>
-                                        <x-input-label :value="__('Harga Pokok Konversi (Modal)')" />
-                                        <x-text-input type="number" step="0.01" x-bind:name="'konversi[' + index + '][harga_pokok_konversi]'" class="block mt-1 w-full" required x-model="konversi.harga_pokok_konversi" />
+                                        <x-input-label :value="__('Modal Konversi')" />
+                                        <x-text-input type="number" step="0.01" x-bind:name="'konversi[' + index + '][harga_pokok_konversi]'" x-model="konversi.harga_pokok_konversi" class="block mt-1 w-full" required />
                                     </div>
+
                                     <div>
-                                        <x-input-label :value="__('Harga Jual Konversi')" />
-                                        <x-text-input type="number" step="0.01" x-bind:name="'konversi[' + index + '][harga_jual_konversi]'" class="block mt-1 w-full" required x-model="konversi.harga_jual_konversi" />
+                                        <x-input-label :value="__('Jual Konversi')" />
+                                        <x-text-input type="number" step="0.01" x-bind:name="'konversi[' + index + '][harga_jual_konversi]'" x-model="konversi.harga_jual_konversi" class="block mt-1 w-full" required />
                                     </div>
+
                                     <div class="flex items-end">
-                                        <button type="button" @click="konversis.splice(index, 1)" class="px-3 py-2 bg-red-600 text-white rounded-md">Hapus</button>
+                                        <button type="button" @click="konversis.splice(index, 1)" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Hapus</button>
                                     </div>
                                 </div>
                             </template>
-                            <button type="button" @click="konversis.push({})" class="mt-2 px-4 py-2 bg-green-500 text-white rounded-md">
-                                + Tambah Konversi (misal: DUS)
+
+                            <button type="button" @click="konversis.push({ id_satuan_konversi: '', nilai_konversi: '', harga_pokok_konversi: '', harga_jual_konversi: '' })" class="mt-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                                + Tambah Konversi
                             </button>
                         </div>
-                        
-                        {{-- =============================================== --}}
-                        {{-- 3. HARGA JUAL --}}
-                        {{-- =============================================== --}}
-                        <h3 class="text-lg font-semibold mb-4 mt-6 border-b pb-2">Harga Jual</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
-                            <div>
-                                <x-input-label for="harga_jual_dasar" :value="__('Harga Jual Satuan Dasar (misal: PCS)')" />
-                                {{-- PERUBAHAN 3: Isi Value --}}
-                                <x-text-input id="harga_jual_dasar" class="block mt-1 w-full" type="number" step="0.01" name="harga_jual_dasar" :value="old('harga_jual_dasar', $produk->harga_jual_dasar)" required />
-                                <x-input-error :messages="$errors->get('harga_jual_dasar')" class="mt-2" />
-                            </div>
-                        </div>
     
-                        {{-- Tombol Simpan & Batal FORM UTAMA --}}
+                        {{-- Tombol Simpan --}}
                         <div class="flex items-center justify-end mt-6">
-                            <a href="{{ route('admin.produk.index') }}" class="text-gray-600 dark:text-gray-400 hover:underline mr-4">Batal</a>
-                            {{-- PERUBAHAN 6: Ganti Teks Tombol --}}
+                            <a href="{{ route('admin.produk.index') }}" class="text-gray-600 hover:underline mr-4">Batal</a>
                             <x-primary-button>
-                                {{ __('Update Produk') }}
+                                {{ __('Simpan Perubahan') }}
                             </x-primary-button>
                         </div>
                     </form>
@@ -218,16 +200,11 @@
         </div>
     </div>
 
-    {{-- Script AJAX untuk Quick Add (TETAP SAMA, TIDAK DIUBAH) --}}
+    {{-- Script Modal (Sama seperti Create) --}}
     @push('scripts')
-        {{-- Script untuk Kategori Quick Add --}}
-        <script>
-            // ... (Kode script Kategori Anda yang sudah benar) ...
-        </script>
-        
-        {{-- Script untuk Supplier Quick Add --}}
-        <script>
-            // ... (Kode script Supplier Anda yang sudah benar) ...
-        </script>
+    <script>
+        // Script modal kategori/supplier (jika diperlukan)
+    </script>
     @endpush
+
 </x-app-layout>

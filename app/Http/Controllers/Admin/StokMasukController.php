@@ -64,20 +64,42 @@ class StokMasukController extends Controller
     public function cariProduk(Request $request)
     {
         $search = $request->query('search');
-
-        if (empty($search)) {
-            return response()->json([]);
-        }
+        if (empty($search)) return response()->json([]);
 
         $produks = Produk::where('nama_produk', 'like', '%' . $search . '%')
                          ->orWhere('id_produk', 'like', '%' . $search . '%')
-                         ->with('satuanDasar') 
-                         ->limit(5)
+                         // Load relasi untuk hitung stok
+                         ->with(['satuanDasar', 'produkKonversis.satuan', 'stokMasukDetails', 'detailTransaksis']) 
+                         ->limit(10)
                          ->get();
 
         $hasil = [];
 
         foreach ($produks as $produk) {
+            // --- LOGIKA HITUNG STOK REAL-TIME ---
+            $total_masuk = 0;
+            foreach ($produk->stokMasukDetails as $masuk) {
+                $jumlah = $masuk->jumlah;
+                if ($masuk->satuan !== ($produk->satuanDasar->nama_satuan ?? 'PCS')) {
+                    $konv = $produk->produkKonversis->first(fn($k) => $k->satuan->nama_satuan === $masuk->satuan);
+                    if ($konv) $jumlah *= $konv->nilai_konversi;
+                }
+                $total_masuk += $jumlah;
+            }
+            
+            $total_keluar = 0;
+            foreach ($produk->detailTransaksis as $keluar) {
+                $jumlah = $keluar->jumlah;
+                if ($keluar->satuan !== ($produk->satuanDasar->nama_satuan ?? 'PCS')) {
+                    $konv = $produk->produkKonversis->first(fn($k) => $k->satuan->nama_satuan === $keluar->satuan);
+                    if ($konv) $jumlah *= $konv->nilai_konversi;
+                }
+                $total_keluar += $jumlah;
+            }
+            
+            $stok_sisa_pcs = $total_masuk - $total_keluar;
+            // ------------------------------------
+
             // 1. Satuan Dasar
             $hasil[] = [
                 'unique_id' => $produk->id_produk . '-' . $produk->id_satuan_dasar,
@@ -85,19 +107,25 @@ class StokMasukController extends Controller
                 'nama_produk' => $produk->nama_produk,
                 'id_satuan' => $produk->id_satuan_dasar,
                 'nama_satuan' => $produk->satuanDasar->nama_satuan, 
-                'harga_pokok' => $produk->harga_pokok_dasar
+                'harga_pokok' => $produk->harga_pokok_dasar,
+                // KIRIM DATA STOK
+                'stok_real' => number_format($stok_sisa_pcs, 0, ',', '.') 
             ];
 
             // 2. Satuan Konversi
-            $konversis = $produk->produkKonversis()->with('satuan')->get();
-            foreach ($konversis as $konv) {
+            foreach ($produk->produkKonversis as $konv) {
+                // Hitung stok konversi
+                $stok_konv = ($konv->nilai_konversi > 0) ? ($stok_sisa_pcs / $konv->nilai_konversi) : 0;
+
                 $hasil[] = [
                     'unique_id' => $produk->id_produk . '-' . $konv->id_satuan_konversi,
                     'id_produk' => $produk->id_produk,
                     'nama_produk' => $produk->nama_produk,
                     'id_satuan' => $konv->id_satuan_konversi,
                     'nama_satuan' => $konv->satuan->nama_satuan, 
-                    'harga_pokok' => $konv->harga_pokok_konversi
+                    'harga_pokok' => $konv->harga_pokok_konversi,
+                    // KIRIM DATA STOK KONVERSI
+                    'stok_real' => number_format($stok_konv, 2, ',', '.')
                 ];
             }
         }
