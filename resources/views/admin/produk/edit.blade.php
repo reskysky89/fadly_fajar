@@ -116,7 +116,7 @@
                         {{-- 2. SATUAN & HARGA POKOK --}}
                         {{-- =============================================== --}}
                         {{-- PERUBAHAN 4: Isi x-data dengan konversi yang ada --}}
-                        <div x-data="{ konversis: {{ $produk->produkKonversis->toJson() }} }">
+                        <div x-data="{ konversis: @json(old('konversi', $produk->produkKonversis)) }">
                             <h3 class="text-lg font-semibold mb-4 border-b pb-2">Satuan & Harga Pokok (Modal)</h3>
                             
                             {{-- Bagian Satuan Dasar --}}
@@ -144,6 +144,18 @@
     
                             {{-- Bagian Daftar Konversi (Dinamis dengan Alpine.js) --}}
                             <h4 class="text-md font-semibold mb-2">Daftar Konversi (Opsional)</h4>
+                            @if ($errors->has('konversi.*'))
+                                <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                                    <strong class="block mb-1">Terjadi kesalahan pada data konversi:</strong>
+                                    <ul class="list-disc list-inside text-sm">
+                                        @foreach ($errors->get('konversi.*') as $messages)
+                                            @foreach ($messages as $message)
+                                                <li>{{ $message }}</li>
+                                            @endforeach
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
                             <template x-for="(konversi, index) in konversis" :key="index">
                                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-2 p-4 border rounded-md relative">
                                     <div>

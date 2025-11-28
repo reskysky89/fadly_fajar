@@ -116,12 +116,29 @@ class ProdukController extends Controller
             'gambar' => 'nullable|image|max:2048',
             'id_satuan_dasar' => 'required|exists:satuan,id_satuan',
             'harga_pokok_dasar' => 'required|numeric|min:0',
-            'harga_jual_dasar' => 'required|numeric|min:0',
-            'konversi' => 'nullable|array',
+            'harga_jual_dasar' => 'required|numeric|min:0|gte:harga_pokok_dasar',
+            'konversi' => ['nullable', 'array'],
+            'konversi.*' => [
+                function ($attribute, $value, $fail) {
+                    // Ambil harga modal & jual dari baris tersebut
+                    $modal = $value['harga_pokok_konversi'] ?? 0;
+                    $jual = $value['harga_jual_konversi'] ?? 0;
+                    
+                    if ($jual < $modal) {
+                        // $attribute formatnya: konversi.0, konversi.1, dst.
+                        // Kita ambil indexnya untuk pesan error yang jelas
+                        $index = explode('.', $attribute)[1] + 1; 
+                        $fail("Baris Konversi ke-{$index}: Harga Jual (Rp " . number_format($jual) . ") tidak boleh lebih rendah dari Modal (Rp " . number_format($modal) . ").");
+                    }
+                },
+            ],
             'konversi.*.id_satuan_konversi' => 'required_with:konversi|exists:satuan,id_satuan',
             'konversi.*.nilai_konversi' => 'required_with:konversi|integer|min:1',
             'konversi.*.harga_pokok_konversi' => 'required_with:konversi|numeric|min:0',
             'konversi.*.harga_jual_konversi' => 'required_with:konversi|numeric|min:0',
+        ], [
+            // Pesan Error Kustom (Opsional)
+            'harga_jual_dasar.gte' => 'Harga Jual Utama tidak boleh lebih rendah dari Harga Modal Utama.',
         ]);
 
         $gambarPath = null;
@@ -200,13 +217,28 @@ class ProdukController extends Controller
             
             'id_satuan_dasar' => 'required|exists:satuan,id_satuan',
             'harga_pokok_dasar' => 'required|numeric|min:0',
-            'harga_jual_dasar' => 'required|numeric|min:0',
-            
-            'konversi' => 'nullable|array',
+            'harga_jual_dasar' => 'required|numeric|min:0|gte:harga_pokok_dasar',
+            'konversi' => ['nullable', 'array'],
+            'konversi.*' => [
+                function ($attribute, $value, $fail) {
+                    // Ambil harga modal & jual dari baris tersebut
+                    $modal = $value['harga_pokok_konversi'] ?? 0;
+                    $jual = $value['harga_jual_konversi'] ?? 0;
+                    
+                    if ($jual < $modal) {
+                        // $attribute formatnya: konversi.0, konversi.1, dst.
+                        // Kita ambil indexnya untuk pesan error yang jelas
+                        $index = explode('.', $attribute)[1] + 1; 
+                        $fail("Baris Konversi ke-{$index}: Harga Jual (Rp " . number_format($jual) . ") tidak boleh lebih rendah dari Modal (Rp " . number_format($modal) . ").");
+                    }
+                },
+            ],
             'konversi.*.id_satuan_konversi' => 'required_with:konversi|exists:satuan,id_satuan',
             'konversi.*.nilai_konversi' => 'required_with:konversi|integer|min:1',
             'konversi.*.harga_pokok_konversi' => 'required_with:konversi|numeric|min:0',
             'konversi.*.harga_jual_konversi' => 'required_with:konversi|numeric|min:0',
+        ], [
+            'harga_jual_dasar.gte' => 'Harga Jual Utama tidak boleh lebih rendah dari Harga Modal Utama.',
         ]);
 
         // 2. Handle Upload Gambar (Jika ada gambar baru)
