@@ -61,15 +61,40 @@
                     
                     {{-- Filter & Pencarian --}}
                     <div class="flex justify-between items-center mb-6">
-                        <form action="{{ route('admin.stok.index') }}" method="GET" class="flex items-center space-x-2">
-                            <input type="date" name="tanggal_mulai" value="{{ request('tanggal_mulai') }}" class="form-input rounded-md shadow-sm dark:bg-gray-900 dark:border-gray-700 text-sm">
-                            <input type="date" name="tanggal_akhir" value="{{ request('tanggal_akhir') }}" class="form-input rounded-md shadow-sm dark:bg-gray-900 dark:border-gray-700 text-sm">
-                            <x-primary-button>Filter</x-primary-button>
-                            <a href="{{ route('admin.stok.index') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300">Reset</a>
+                        <form action="{{ route('admin.stok.index') }}" method="GET" class="flex flex-wrap items-center gap-2">
+                            
+                            {{-- 1. Input Pencarian (BARU) --}}
+                            <div class="relative">
+                                <input type="text" name="search" 
+                                       value="{{ request('search') }}" 
+                                       placeholder="Cari Supplier / Ket..." 
+                                       class="w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300">
+                            </div>
+
+                            {{-- 2. Filter Tanggal (SAMA SEPERTI SEBELUMNYA) --}}
+                            <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-md">
+                                <input type="date" name="tanggal_mulai" value="{{ request('tanggal_mulai') }}" 
+                                       class="border-none bg-transparent text-sm focus:ring-0 p-1 dark:text-gray-300" title="Dari Tanggal">
+                                <span class="text-gray-500">-</span>
+                                <input type="date" name="tanggal_akhir" value="{{ request('tanggal_akhir') }}" 
+                                       class="border-none bg-transparent text-sm focus:ring-0 p-1 dark:text-gray-300" title="Sampai Tanggal">
+                            </div>
+
+                            {{-- Tombol Filter --}}
+                            <x-primary-button>Cari</x-primary-button>
+                            
+                            {{-- Tombol Reset --}}
+                            @if(request('search') || request('tanggal_mulai'))
+                                <a href="{{ route('admin.stok.index') }}" class="px-3 py-2 text-sm font-medium text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 transition">
+                                    Reset
+                                </a>
+                            @endif
                         </form>
 
-                        <a href="{{ route('admin.stok.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500">
-                            + Input Stok Masuk
+                        {{-- Tombol Input Stok (Tetap di Kanan) --}}
+                        <a href="{{ route('admin.stok.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 transition shadow-lg">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Input Stok Masuk
                         </a>
                     </div>
 

@@ -42,7 +42,7 @@
                class="{{ $baseClass }} {{ request()->routeIs('admin.kasir.*') ? $activeClass : $inactiveClass }}">
                 Manajemen Kasir
             </a>
-            <a href="#" class="{{ $baseClass }} {{ $inactiveClass }}">
+            <a href="{{ route('admin.laporan.index') }}" class="{{ $baseClass }} {{ request()->routeIs('admin.laporan.*') ? $activeClass : $inactiveClass }}">
                 Laporan Penjualan
             </a>
             <a href="#" class="{{ $baseClass }} {{ $inactiveClass }}">

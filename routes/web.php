@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\StokMasukController;
 use App\Http\Controllers\Admin\KasirController;
 use App\Http\Controllers\Kasir\TransaksiController;
+use App\Http\Controllers\Admin\LaporanPenjualanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -75,7 +76,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     
     // 2. Rute khusus untuk Toggle Status (Pengganti Delete)
     Route::patch('/kasir/{id}/toggle-status', [KasirController::class, 'toggleStatus'])->name('kasir.toggleStatus');
-
+    // Laporan Penjualan
+    Route::get('/laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan-penjualan/edit-transaksi', [LaporanPenjualanController::class, 'edit'])->name('laporan.edit');
+    Route::put('/laporan-penjualan/update-transaksi', [LaporanPenjualanController::class, 'update'])->name('laporan.update');
 });
 
 // Rute untuk Kasir

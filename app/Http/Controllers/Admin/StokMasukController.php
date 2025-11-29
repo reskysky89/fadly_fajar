@@ -18,7 +18,7 @@ class StokMasukController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Mulai Query
+        // 1. Mulai Query (Eager Load relasi untuk performa)
         $query = StokMasukBatch::with(['user', 'supplier', 'userDiubah'])->latest();
 
         // 2. Logika Filter Tanggal (Yang sudah ada)
@@ -26,24 +26,26 @@ class StokMasukController extends Controller
             $query->whereBetween('tanggal_masuk', [$request->tanggal_mulai, $request->tanggal_akhir]);
         }
 
-        // 3. Logika Pencarian (BARU)
+        // 3. LOGIKA PENCARIAN BARU (Supplier OR Keterangan)
         if ($request->filled('search')) {
             $search = $request->search;
             
             $query->where(function($q) use ($search) {
-                // Cari di kolom 'keterangan'
+                // Cari di kolom keterangan
                 $q->where('keterangan', 'like', '%' . $search . '%')
-                  // ATAU cari di nama supplier (menggunakan relasi)
+                  // ATAU Cari di nama supplier (lewat relasi)
                   ->orWhereHas('supplier', function($subQuery) use ($search) {
                       $subQuery->where('nama_supplier', 'like', '%' . $search . '%');
-                  });
+                  })
+                  // ATAU Cari berdasarkan No Transaksi (Opsional, biar makin lengkap)
+                  ->orWhere('id_batch_stok', 'like', '%' . $search . '%');
             });
         }
 
         // 4. Eksekusi Query
         $riwayatStok = $query->paginate(10);
         
-        // 5. Penting: Tambahkan semua parameter filter ke link pagination
+        // 5. Append query string agar filter/search tidak hilang saat klik halaman 2
         $riwayatStok->appends($request->all());
 
         return view('admin.stok.index', compact('riwayatStok'));
