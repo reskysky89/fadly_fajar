@@ -25,43 +25,30 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate(); // <-- Ini menjalankan logika dari LoginRequest.php (Langkah 3)
+        // 1. Cek Username & Password
+        $request->authenticate();
 
-        $request->session()->regenerate(); // <-- Ini membuat sesi baru
+        // 2. Regenerasi Session (Standar Keamanan)
+        $request->session()->regenerate();
 
-        // --- MULAI MODIFIKASI MULTI-PERAN ---
+        $user = $request->user();
 
-        // 1. Ambil data user yang baru saja login
-        $user = Auth::user(); // <-- TAMBAHAN
-
-        // 2. Cek apakah akunnya aktif (sesuai ERD)
-        if ($user->status_akun !== 'aktif') { // <-- TAMBAHAN
-            Auth::guard('web')->logout(); // <-- TAMBAHAN (Logout paksa jika tidak aktif)
-            $request->session()->invalidate(); // <-- TAMBAHAN
-            $request->session()->regenerateToken(); // <-- TAMBAHAN
-            
-            // Kirim pesan error kembali ke halaman login
-            return redirect('/login')->withErrors(['login' => 'Akun Anda telah dinonaktifkan. Hubungi Admin.']); // <-- TAMBAHAN
+        // --- LOGIKA BARU: CEK VERIFIKASI ---
+        // Khusus Pelanggan: Jika belum verifikasi email, langsung lempar ke halaman verifikasi
+        if ($user->role_user === 'pelanggan' && ! $user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
         }
-        
-        // 3. Update 'last_login' (sesuai ERD)
-        $user->last_login = now(); // <-- TAMBAHAN
-        $user->save(); // <-- TAMBAHAN (Simpan perubahan ke database)
+        // -----------------------------------
 
-        // 4. Arahkan berdasarkan 'role_user' (sesuai ERD)
-        if ($user->role_user === 'admin') { // <-- TAMBAHAN
-            // Jika admin, arahkan ke rute '/admin/dashboard'
-            return redirect()->intended('/admin/dashboard'); // <-- TAMBAHAN
-        } 
-        
-        if ($user->role_user === 'kasir') {
-            // Langsung ke halaman penjualan
-            return redirect()->intended(route('kasir.transaksi.index')); 
+        // 3. Jika Sudah Verifikasi (atau Admin/Kasir), Arahkan sesuai Role
+        if ($user->role_user === 'admin') {
+            return redirect()->route('admin.dashboard');
+        } elseif ($user->role_user === 'kasir') {
+            return redirect()->route('kasir.transaksi.index');
+        } else {
+            // Pelanggan Verified -> Ke Home
+            return redirect()->intended(route('home'));
         }
-        // 5. Default untuk 'pelanggan' (Menggantikan baris asli)
-        return redirect()->intended(RouteServiceProvider::HOME); // <-- PENGGANTI (HOME = '/dashboard')
-        
-        // --- AKHIR MODIFIKASI ---
     }
 
     /**

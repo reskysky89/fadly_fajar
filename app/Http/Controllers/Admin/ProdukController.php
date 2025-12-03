@@ -10,6 +10,7 @@ use App\Models\Satuan;
 use App\Models\ProdukKonversi; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB; 
+use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage; // Untuk menghapus gambar
 
 class ProdukController extends Controller
@@ -143,7 +144,25 @@ class ProdukController extends Controller
 
         $gambarPath = null;
         if ($request->hasFile('gambar')) {
-            $gambarPath = $request->file('gambar')->store('produk', 'public');
+            $file = $request->file('gambar');
+            
+            // Buat nama file unik
+            $filename = time() . '_' . $file->getClientOriginalName();
+            
+            // PROSES KOMPRESI & RESIZE
+            // 1. Resize: Ubah lebar jadi 800px (tinggi menyesuaikan/aspect ratio)
+            // 2. Compress: Turunkan kualitas jadi 75% (Mata manusia tidak sadar bedanya, tapi size turun drastis)
+            $img = Image::make($file->getRealPath())
+                ->resize(800, null, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize(); // Jangan perbesar jika gambar aslinya kecil
+                })
+                ->encode('jpg', 75); // Format JPG, kualitas 75%
+
+            // Simpan ke folder storage/app/public/produk
+            Storage::put('public/produk/' . $filename, $img);
+            
+            $gambarPath = 'produk/' . $filename;
         }
 
         try {
@@ -226,7 +245,7 @@ class ProdukController extends Controller
                     $jual = $value['harga_jual_konversi'] ?? 0;
                     
                     if ($jual < $modal) {
-                        // $attribute formatnya: konversi.0, konversi.1, dst.
+                        // $attribute formatnya: konversi.0, konversi.1, dst.   
                         // Kita ambil indexnya untuk pesan error yang jelas
                         $index = explode('.', $attribute)[1] + 1; 
                         $fail("Baris Konversi ke-{$index}: Harga Jual (Rp " . number_format($jual) . ") tidak boleh lebih rendah dari Modal (Rp " . number_format($modal) . ").");
@@ -242,10 +261,27 @@ class ProdukController extends Controller
         ]);
 
         // 2. Handle Upload Gambar (Jika ada gambar baru)
-        $gambarPath = $produk->gambar; 
+        $gambarPath = $produk->gambar; // Pakai gambar lama dulu
+        
         if ($request->hasFile('gambar')) {
-            // Storage::disk('public')->delete($produk->gambar); 
-            $gambarPath = $request->file('gambar')->store('produk', 'public');
+            // HAPUS GAMBAR LAMA (Agar hemat memori)
+            if ($produk->gambar && Storage::exists('public/' . $produk->gambar)) {
+                Storage::delete('public/' . $produk->gambar);
+            }
+
+            // UPLOAD GAMBAR BARU (Dengan Kompresi)
+            $file = $request->file('gambar');
+            $filename = time() . '_' . $file->getClientOriginalName();
+            
+            $img = Image::make($file->getRealPath())
+                ->resize(800, null, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->encode('jpg', 75);
+
+            Storage::put('public/produk/' . $filename, $img);
+            $gambarPath = 'produk/' . $filename;
         }
 
         // 3. Gunakan DB Transaction

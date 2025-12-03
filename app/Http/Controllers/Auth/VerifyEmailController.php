@@ -14,14 +14,34 @@ class VerifyEmailController extends Controller
      */
     public function __invoke(EmailVerificationRequest $request): RedirectResponse
     {
+        // 1. Cek apakah email sudah diverifikasi sebelumnya?
         if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+            return $this->redirectBasedOnRole($request->user());
         }
 
+        // 2. Jika belum, verifikasi sekarang!
         if ($request->user()->markEmailAsVerified()) {
             event(new Verified($request->user()));
         }
 
-        return redirect()->intended(route('dashboard', absolute: false).'?verified=1');
+        // 3. Arahkan sesuai Role
+        return $this->redirectBasedOnRole($request->user())->with('verified', 1);
+    }
+
+    /**
+     * Fungsi Tambahan: Menentukan Arah Redirect
+     */
+    protected function redirectBasedOnRole($user)
+    {
+        $role = $user->role_user;
+
+        if ($role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        } elseif ($role === 'kasir') {
+            return redirect()->route('kasir.transaksi.index');
+        } else {
+            // PELANGGAN: Arahkan ke Halaman Utama (Home) untuk belanja
+            return redirect()->route('home');
+        }
     }
 }

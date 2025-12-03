@@ -9,11 +9,14 @@ use App\Http\Controllers\Admin\StokMasukController;
 use App\Http\Controllers\Admin\KasirController;
 use App\Http\Controllers\Kasir\TransaksiController;
 use App\Http\Controllers\Admin\LaporanPenjualanController;
+use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Pelanggan\KeranjangController;
+use App\Http\Controllers\Pelanggan\CheckoutController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Ini adalah dasbor default untuk 'pelanggan'
 Route::get('/dashboard', function () {
@@ -39,7 +42,7 @@ Route::middleware('auth')->group(function () {
 */
 
 // Rute untuk Admin
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     
     // Rute: /admin/dashboard
     // Nama Rute: admin.dashboard
@@ -80,24 +83,47 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('/laporan-penjualan', [LaporanPenjualanController::class, 'index'])->name('laporan.index');
     Route::get('/laporan-penjualan/edit-transaksi', [LaporanPenjualanController::class, 'edit'])->name('laporan.edit');
     Route::put('/laporan-penjualan/update-transaksi', [LaporanPenjualanController::class, 'update'])->name('laporan.update');
-});
-
-// Rute untuk Kasir
-Route::middleware(['auth', 'verified'])->prefix('kasir')->name('kasir.')->group(function () {
     
-    //1. Halaman Utama Kasir (POS / Penjualan)
+});
+// 2. RUTE TRANSAKSI / POS (Bisa Diakses Admin & Kasir)
+// ==============================================================================
+// Kita keluarkan dari grup 'kasir' agar Admin juga bisa akses.
+// Tapi kita tetap pakai prefix 'kasir' dan name 'kasir.' agar Script JS tidak error.
+Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
+    
+    // Halaman Utama Penjualan
     Route::get('/transaksi', [TransaksiController::class, 'index'])->name('transaksi.index');
+    
+    // API & Action Penjualan
     Route::get('/transaksi/cari-produk', [TransaksiController::class, 'cariProduk'])->name('transaksi.cariProduk');
     Route::post('/transaksi', [TransaksiController::class, 'store'])->name('transaksi.store');
 
-    // 2. Jika Kasir mencoba akses /dashboard, lempar ke /transaksi
+    // Riwayat & Detail
+    Route::get('/riwayat', [TransaksiController::class, 'riwayat'])->name('riwayat.index');
+    Route::get('/transaksi/detail', [TransaksiController::class, 'show'])->name('transaksi.show');
+    Route::get('/transaksi/cetak', [TransaksiController::class, 'cetak'])->name('transaksi.cetak');
+
+});
+
+// Rute untuk Kasir
+Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
+    
     Route::get('/dashboard', function () {
         return redirect()->route('kasir.transaksi.index');
     })->name('dashboard');
 
-    Route::get('/riwayat', [TransaksiController::class, 'riwayat'])->name('riwayat.index');
-    Route::get('/transaksi/detail', [TransaksiController::class, 'show'])->name('transaksi.show');
-    Route::get('/transaksi/cetak', [TransaksiController::class, 'cetak'])->name('transaksi.cetak');
+});
+// RUTE KHUSUS PELANGGAN (Wajib Login & Wajib Verifikasi)
+Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // Halaman-halaman ini HANYA bisa diakses kalau sudah klik email
+    Route::get('/profil', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::get('/keranjang', [KeranjangController::class, 'index'])->name('keranjang.index'); // Nanti kita buat
+    Route::post('/keranjang/tambah', [KeranjangController::class, 'tambah'])->name('keranjang.tambah');
+    Route::patch('/keranjang/{id}', [KeranjangController::class, 'update'])->name('keranjang.update');
+    Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->name('keranjang.destroy');
+    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');   // Nanti kita buat
 
 });
 

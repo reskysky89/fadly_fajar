@@ -230,9 +230,13 @@ class TransaksiController extends Controller
 
         // Filter Pencarian (ID Transaksi) - Tetap bisa mencari di luar tanggal default
         if ($request->filled('search')) {
-            // Jika sedang mencari ID tertentu, kita abaikan batasan tanggal default
-            // agar riwayat lama pun bisa ketemu jika ID-nya diketik
-            $query->orWhere('id_transaksi', 'like', '%' . $request->search . '%');
+            $search = $request->search;
+            
+            // Gunakan grouping function($q) agar logika AND/OR tidak bocor ke filter lain
+            $query->where(function($q) use ($search) {
+                $q->where('id_transaksi', 'like', '%' . $search . '%')
+                  ->orWhere('nama_pelanggan', 'like', '%' . $search . '%');
+            });
         }
 
         $riwayat = $query->paginate(10);

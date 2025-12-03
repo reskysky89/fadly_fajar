@@ -33,6 +33,26 @@ class LaporanPenjualanController extends Controller
         if ($request->filled('id_kasir') && $request->id_kasir != 'semua') {
             $query->where('id_user_kasir', $request->id_kasir);
         }
+        // 4. DEEP SEARCH (PENCARIAN MENDALAM)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            
+            $query->where(function($q) use ($search) {
+                // A. Cari No Transaksi
+                $q->where('id_transaksi', 'like', '%' . $search . '%')
+                  
+                  // B. Cari Nama Pelanggan
+                  ->orWhere('nama_pelanggan', 'like', '%' . $search . '%')
+                  
+                  // C. Cari Nama Kasir
+                  ->orWhere('nama_kasir', 'like', '%' . $search . '%')
+
+                  // D. Cari Nama Barang (Masuk ke Detail -> Produk)
+                  ->orWhereHas('details.produk', function($subQuery) use ($search) {
+                      $subQuery->where('nama_produk', 'like', '%' . $search . '%');
+                  });
+            });
+        }
 
         // 3. Hitung Ringkasan (Berdasarkan data yang sudah difilter di atas)
         // Kita clone query agar tidak mengganggu pagination di bawah
