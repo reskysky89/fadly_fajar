@@ -12,6 +12,7 @@ return new class extends Migration
             $table->unsignedBigInteger('id_batch_stok');
             $table->string('id_produk', 50); 
             $table->integer('jumlah');
+            $table->unsignedBigInteger('id_satuan')->nullable();
             $table->string('satuan', 20); // Misal: "DUS" atau "PCS"
             $table->decimal('harga_beli_satuan', 12, 2); 
             $table->timestamps();
@@ -23,6 +24,7 @@ return new class extends Migration
             $table->foreign('id_produk')
                   ->references('id_produk')->on('produk')
                   ->onDelete('cascade');
+            $table->foreign('id_satuan')->references('id_satuan')->on('satuan')->onDelete('set null');
         });
     }
 

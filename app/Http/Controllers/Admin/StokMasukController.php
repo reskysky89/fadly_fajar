@@ -181,6 +181,7 @@ class StokMasukController extends Controller
                     'id_batch_stok' => $batch->id_batch_stok,
                     'id_produk' => $item['id_produk'],
                     'jumlah' => $item['jumlah'],
+                    'id_satuan' => $item['id_satuan'] ?? null,
                     'satuan' => $item['nama_satuan'],
                     'harga_beli_satuan' => $item['harga_beli_satuan'],
                 ]);
@@ -257,6 +258,7 @@ class StokMasukController extends Controller
                     'id_batch_stok' => $batch->id_batch_stok,
                     'id_produk' => $item['id_produk'],
                     'jumlah' => $item['jumlah'],
+                    'id_satuan' => $item['id_satuan'] ?? null,
                     'satuan' => $item['nama_satuan'],
                     'harga_beli_satuan' => $item['harga_beli_satuan'],
                 ]);

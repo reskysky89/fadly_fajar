@@ -1,309 +1,378 @@
-    <x-app-layout>
-        <x-slot name="header">
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                {{ __('Edit Stok Masuk') }}
-            </h2>
-        </x-slot>
+<x-app-layout>
+    {{-- CSS: Hilangkan Spinner Input Number --}}
+    <style>
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
 
-        {{-- LOGIKA PHP: MENYIAPKAN DATA --}}
-        @php
-            $initialData = [];
-            foreach ($batch->details as $index => $detail) {
-                $satuan_options = [];
-                
-                // 1. Masukkan Opsi Satuan Dasar
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+            {{ __('Edit Transaksi Stok Masuk') }}
+        </h2>
+    </x-slot>
+
+    {{-- LOGIKA PHP: SIAPKAN DATA --}}
+    @php
+        $initialData = [];
+        foreach ($batch->details as $index => $detail) {
+            $satuan_options = [];
+            
+            // 1. Satuan Dasar
+            $satuan_options[] = [
+                'nama' => $detail->produk->satuanDasar->nama_satuan ?? 'PCS',
+                'harga' => $detail->produk->harga_pokok_dasar,
+            ];
+            
+            // 2. Satuan Konversi
+            foreach ($detail->produk->produkKonversis as $konv) {
                 $satuan_options[] = [
-                    'id_satuan' => $detail->produk->id_satuan_dasar,
-                    'nama_satuan' => $detail->produk->satuanDasar->nama_satuan,
-                    'harga_pokok' => $detail->produk->harga_pokok_dasar,
-                    'id_produk' => $detail->id_produk,
-                    'nama_produk' => $detail->produk->nama_produk
-                ];
-                
-                // 2. Masukkan Opsi Satuan Konversi
-                foreach ($detail->produk->produkKonversis as $konv) {
-                    $satuan_options[] = [
-                        'id_satuan' => $konv->id_satuan_konversi,
-                        'nama_satuan' => $konv->satuan->nama_satuan,
-                        'harga_pokok' => $konv->harga_pokok_konversi,
-                        'id_produk' => $detail->id_produk,
-                        'nama_produk' => $detail->produk->nama_produk
-                    ];
-                }
-                
-                // --- PERBAIKAN LOGIKA PENCOCOKAN SATUAN ---
-                $currentSatuanId = null;
-                $satuanDb = strtoupper(trim($detail->satuan)); // Ambil dari DB, bersihkan
-
-                // Cek satu per satu opsi
-                if (!empty($satuan_options)) {
-                    // Default ke yang pertama (jika tidak ketemu)
-                    $currentSatuanId = $satuan_options[0]['id_satuan']; 
-
-                    foreach ($satuan_options as $opt) {
-                        $satuanOpt = strtoupper(trim($opt['nama_satuan']));
-                        // Jika nama di DB sama dengan nama di Opsi
-                        if ($satuanDb === $satuanOpt) {
-                            $currentSatuanId = $opt['id_satuan'];
-                            break; // Ketemu! Stop looping.
-                        }
-                    }
-                }
-                // ------------------------------------------
-
-                $initialData[] = [
-                    'id' => $index,
-                    'id_produk_input' => $detail->id_produk,
-                    'id_produk_final' => $detail->id_produk,
-                    'nama_produk' => $detail->produk->nama_produk,
-                    'satuan_options' => $satuan_options,
-                    'id_satuan' => $currentSatuanId, // ID yang sudah dicocokkan
-                    'nama_satuan_final' => $detail->satuan,
-                    'jumlah' => $detail->jumlah,
-                    'harga_beli_satuan' => $detail->harga_beli_satuan,
-                    'subtotal' => $detail->jumlah * $detail->harga_beli_satuan,
-                    'error' => ''
+                    'nama' => $konv->satuan->nama_satuan,
+                    'harga' => $konv->harga_pokok_konversi,
                 ];
             }
-        @endphp
 
-        <script>
-            window.stokEditData = {!! json_encode($initialData) !!};
-        </script>
+            // 3. Pastikan Satuan Lama Ada (Match by Name)
+            $satuanTersimpan = trim($detail->satuan); 
+            $isFound = false;
+            foreach ($satuan_options as $opt) {
+                if (strtoupper($opt['nama']) == strtoupper($satuanTersimpan)) {
+                    $isFound = true; 
+                    $satuanTersimpan = $opt['nama']; // Pakai casing dari opsi
+                    break;
+                }
+            }
+            
+            if (!$isFound) {
+                $satuan_options[] = [
+                    'nama' => $satuanTersimpan,
+                    'harga' => $detail->harga_beli_satuan
+                ];
+            }
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                    
-                    <div class="p-6 text-gray-900 dark:text-gray-100" x-data="stokMasukEditForm()">
-                        
-                        {{-- Tab Navigasi --}}
-                        <div class="mb-4 border-b border-gray-200 dark:border-gray-700">
-                            <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
-                                <li class="me-2">
-                                    <a href="{{ route('admin.stok.index') }}" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300">
-                                        Riwayat Stok Masuk
-                                    </a>
-                                </li>
-                                <li class="me-2">
-                                    <a href="{{ route('admin.stok.create') }}" class="inline-block p-4 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300 dark:hover:text-gray-300">
-                                        Input Stok Masuk
-                                    </a>
-                                </li>
-                                <li class="me-2">
-                                    <a href="#" class="inline-block p-4 text-blue-600 border-b-2 border-blue-600 rounded-t-lg active dark:text-blue-500 dark:border-blue-500">
-                                        Edit Transaksi (STOK-{{ str_pad($batch->id_batch_stok, 4, '0', STR_PAD_LEFT) }})
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
+            $initialData[] = [
+                'id_temp' => rand(1000,9999), // ID Unik untuk key Alpine
+                'id_produk_final' => $detail->id_produk,
+                'kode_item' => $detail->id_produk, // Digunakan untuk input scan
+                'nama_produk' => $detail->produk->nama_produk,
+                'satuan_options' => $satuan_options,
+                
+                'satuan' => $satuanTersimpan, // Value untuk Dropdown
+                
+                'jumlah' => $detail->jumlah,
+                'harga' => $detail->harga_beli_satuan,
+                'subtotal' => $detail->jumlah * $detail->harga_beli_satuan,
+                'error' => ''
+            ];
+        }
+    @endphp
 
-                        @if(session('error'))
-                            <div class="mb-4 p-4 bg-red-100 text-red-700 rounded-md">{{ session('error') }}</div>
-                        @endif
-                        @if ($errors->any())
-                            <div class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
-                                <ul class="mt-2 list-disc list-inside">
-                                    @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
-                                </ul>
-                            </div>
-                        @endif
+    <script>
+        window.stokEditData = {!! json_encode($initialData) !!};
+    </script>
 
-                        <form action="{{ route('admin.stok.update', $batch->id_batch_stok) }}" method="POST">
-                            @csrf
-                            @method('PUT')
+    <div class="h-[calc(100vh-65px)] flex flex-col bg-gray-100 dark:bg-gray-900" 
+         x-data="stokMasukEditForm()"
+         @keydown.window="handleGlobalKey($event)">
 
-                            {{-- INFO FAKTUR --}}
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                                <div>
-                                    <x-input-label for="id_transaksi" :value="__('ID Transaksi')" />
-                                    <x-text-input id="id_transaksi" class="block mt-1 w-full bg-gray-100" type="text" value="STOK-{{ str_pad($batch->id_batch_stok, 4, '0', STR_PAD_LEFT) }}" disabled />
-                                </div>
-                                <div>
-                                    <x-input-label for="id_supplier" :value="__('Supplier (Opsional)')" />
-                                    <select name="id_supplier" id="id_supplier_dropdown" class="block mt-1 w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm">
-                                        <option value="">Pilih Supplier</option>
-                                        @foreach ($suppliers as $supplier)
-                                            <option value="{{ $supplier->id_supplier }}" {{ old('id_supplier', $batch->id_supplier) == $supplier->id_supplier ? 'selected' : '' }}>
-                                                {{ $supplier->nama_supplier }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <x-input-label for="tanggal_masuk" :value="__('Tanggal Masuk')" />
-                                    <x-text-input id="tanggal_masuk" class="block mt-1 w-full" type="date" name="tanggal_masuk" :value="old('tanggal_masuk', $batch->tanggal_masuk)" required />
-                                </div>
-                                <div>
-                                    <x-input-label for="keterangan" :value="__('Keterangan (Opsional)')" />
-                                    <x-text-input id="keterangan" class="block mt-1 w-full" type="text" name="keterangan" :value="old('keterangan', $batch->keterangan)" />
-                                </div>
-                            </div>
-
-                            {{-- TABEL TRANSAKSI --}}
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                    <thead class="bg-gray-50 dark:bg-gray-700">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left w-16">No.</th>
-                                            <th class="px-6 py-3 text-left w-48">Kode Item (Scan/Ketik)</th>
-                                            <th class="px-6 py-3 text-left">Nama Barang</th>
-                                            <th class="px-6 py-3 text-left w-40">Satuan</th>
-                                            <th class="px-6 py-3 text-left w-24">Jumlah</th>
-                                            <th class="px-6 py-3 text-left w-40">Harga Beli Satuan</th>
-                                            <th class="px-6 py-3 text-left w-40">Subtotal</th>
-                                            <th class="px-6 py-3 text-right">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                                        <template x-for="(baris, index) in barisTabel" :key="index">
-                                            <tr>
-                                                <td class="px-6 py-4" x-text="index + 1"></td>
-                                                
-                                                <td class="px-6 py-4">
-                                                    <input type="text" x-model="baris.id_produk_input" 
-                                                        @input="baris.id_produk_final = ''"
-                                                        @keydown.enter.prevent="cariProdukDanIsi(index)" 
-                                                        @blur="cariProdukDanIsi(index)"
-                                                        class="w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm" 
-                                                        placeholder="Scan...">
-                                                    <input type="hidden" x-bind:name="'detail[' + index + '][id_produk]'" x-model="baris.id_produk_final">
-                                                    <p x-show="baris.error" x-text="baris.error" class="text-sm text-red-500 mt-1"></p>
-                                                </td>
-
-                                                <td class="px-6 py-4"><span x-text="baris.nama_produk"></span></td>
-                                                
-                                                <td class="px-6 py-4">
-                                                    <select x-model="baris.id_satuan" @change="updateHargaDanNamaSatuan(index)"
-                                                            class="w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm">
-                                                        <template x-for="satuan in baris.satuan_options" :key="satuan.id_satuan">
-                                                            <option :value="satuan.id_satuan" x-text="satuan.nama_satuan"></option>
-                                                        </template>
-                                                    </select>
-                                                    <input type="hidden" x-bind:name="'detail[' + index + '][nama_satuan]'" :value="baris.nama_satuan_final">
-                                                </td>
-
-                                                <td class="px-6 py-4">
-                                                    <input type="number" x-bind:name="'detail[' + index + '][jumlah]'" x-model.number="baris.jumlah" @input="hitungSubtotal(index)" 
-                                                        class="w-24 border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 rounded-md shadow-sm">
-                                                </td>
-                                                
-                                                <td class="px-6 py-4">
-                                                    <input type="number" step="0.01" x-bind:name="'detail[' + index + '][harga_beli_satuan]'" x-model.number="baris.harga_beli_satuan" @input="hitungSubtotal(index)" 
-                                                        class="w-40 border-gray-100 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md shadow-sm" readonly>
-                                                </td>
-                                                
-                                                <td class="px-6 py-4"><span x-text="formatRupiah(baris.subtotal)"></span></td>
-                                                
-                                                <td class="px-6 py-4 text-right">
-                                                    <button type="button" @click="hapusBaris(index)" class="text-red-500 hover:text-red-700">Hapus</button>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                    <tfoot class="bg-gray-50 dark:bg-gray-700">
-                                        <tr>
-                                            <td colspan="6" class="px-6 py-3 text-right font-bold">Total Faktur:</td>
-                                            <td colspan="2" class="px-6 py-3 font-bold"><span x-text="formatRupiah(totalFaktur)"></span></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                            
-                            {{-- HAPUS Tombol "+ Tambah Baris" agar konsisten dengan auto-add --}}
-
-                            <div class="flex items-center justify-end mt-8 space-x-3">
-                                <a href="{{ route('admin.stok.index') }}" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md font-semibold text-xs uppercase tracking-widest transition">Batal</a>
-                                <button type="submit" name="action" value="cetak" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-md font-semibold text-xs uppercase tracking-widest transition">Simpan & Cetak Struk</button>
-                                <button type="submit" name="action" value="simpan" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md font-semibold text-xs uppercase tracking-widest transition">Simpan Perubahan</button>
-                            </div>
-                        </form>
-
-                        {{-- MODAL PENCARIAN --}}
-                        <div x-show="modalPencarianOpen" x-transition class="fixed inset-0 bg-gray-600 bg-opacity-75 z-50 flex items-center justify-center" @click.away="modalPencarianOpen = false" x-cloak>
-                            <div @click.stop class="relative mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800">
-                                <h3 class="text-xl font-medium mb-4">Daftar Item Ditemukan</h3>
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                    <thead class="bg-gray-50 dark:bg-gray-700"><tr><th>Kode</th><th>Nama</th><th>Satuan</th><th>Harga</th><th>Aksi</th></tr></thead>
-                                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                                        <template x-for="produk in searchResultsModal" :key="produk.unique_id">
-                                            <tr class="hover:bg-gray-100 dark:hover:bg-gray-600">
-                                                <td class="px-6 py-4" x-text="produk.id_produk"></td>
-                                                <td class="px-6 py-4" x-text="produk.nama_produk"></td>
-                                                <td class="px-6 py-4 font-bold" x-text="produk.nama_satuan"></td>
-                                                <td class="px-6 py-4" x-text="formatRupiah(produk.harga_pokok)"></td>
-                                                <td class="px-6 py-4"><button type="button" @click="pilihProdukDariModal(produk)" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">Pilih</button></td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                                <div class="mt-4 flex justify-end"><button type="button" @click="modalPencarianOpen = false" class="px-4 py-2 text-sm bg-gray-200 rounded-md">Tutup</button></div>
-                            </div>
-                        </div>
-
+        {{-- BAGIAN 1: HEADER INFO --}}
+        <div class="bg-white dark:bg-gray-800 shadow p-4 flex-shrink-0 z-20 border-b border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-9 grid grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-bold">ID Transaksi</label>
+                        <input type="text" value="STOK-{{ str_pad($batch->id_batch_stok, 4, '0', STR_PAD_LEFT) }}" disabled 
+                               class="w-full font-mono font-bold bg-gray-100 border-gray-300 rounded text-gray-500 text-sm cursor-not-allowed">
                     </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Supplier</label>
+                        <select x-model="id_supplier" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Pilih Supplier --</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id_supplier }}">{{ $supplier->nama_supplier }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Tanggal Masuk</label>
+                        <input type="date" x-model="tanggal_masuk" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 uppercase font-bold mb-1">Keterangan</label>
+                        <input type="text" x-model="keterangan" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+
+                {{-- Kanan: Total Besar --}}
+                <div class="col-span-3 bg-gray-900 text-green-400 font-mono font-bold flex flex-col justify-center items-end px-4 rounded shadow-inner border-2 border-gray-700">
+                    <span class="text-xs text-gray-400 uppercase tracking-widest">Total Faktur</span>
+                    <span class="text-3xl tracking-tight" x-text="formatRupiah(totalFaktur)">0</span>
                 </div>
             </div>
         </div>
 
-        @push('scripts')
-        <script>
-            function stokMasukEditForm() {
-                return {
-                    barisTabel: window.stokEditData || [], 
-                    modalPencarianOpen: false, searchResultsModal: [], searchTermModal: '', barisYangAkanDiisi: null, 
-                    
-                    init() {
-                        // Selalu tambahkan 1 baris kosong di akhir untuk scan baru
-                        this.tambahBarisBaru(); 
-                    },
-                    
-                    formatRupiah(angka) { if (isNaN(angka)) { angka = 0; } return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka); },
-                    tambahBarisBaru() { this.barisTabel.push({ id: Date.now() + Math.random(), id_produk_input: '', id_produk_final: '', nama_produk: '---', satuan_options: [], id_satuan: '', nama_satuan_final: '', jumlah: 1, harga_beli_satuan: 0, subtotal: 0, error: '' }); },
-                    hapusBaris(index) { this.barisTabel.splice(index, 1); if(this.barisTabel.length === 0) { this.tambahBarisBaru(); } },
-                    async cariProdukDanIsi(index) {
-                        if (this.modalPencarianOpen) return;
-                        const baris = this.barisTabel[index];
-                        if (baris.id_produk_final && baris.id_produk_final !== '') return;
+        {{-- BAGIAN 2: TABEL EDIT (Scrollable) --}}
+        <div class="flex-1 overflow-hidden p-2 bg-gray-100 dark:bg-gray-900 relative">
+            <div class="bg-white dark:bg-gray-800 shadow rounded-lg h-full flex flex-col border border-gray-300 dark:border-gray-700">
+                <div class="overflow-y-auto flex-1">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 relative">
+                        <thead class="bg-gray-200 dark:bg-gray-700 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="px-4 py-2 text-center text-xs font-bold text-gray-700 uppercase w-10">No</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase w-48">Kode Item</th>
+                                <th class="px-4 py-2 text-left text-xs font-bold text-gray-700 uppercase">Nama Barang</th>
+                                <th class="px-4 py-2 text-center text-xs font-bold text-gray-700 uppercase w-24">Qty</th>
+                                <th class="px-4 py-2 text-center text-xs font-bold text-gray-700 uppercase w-32">Satuan</th>
+                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-700 uppercase w-40">Harga Beli</th>
+                                <th class="px-4 py-2 text-right text-xs font-bold text-gray-700 uppercase w-48">Subtotal</th>
+                                <th class="px-4 py-2 text-center w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                            <template x-for="(baris, index) in barisTabel" :key="baris.id_temp">
+                                <tr :class="activeRow === index ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-50 dark:hover:bg-gray-700'" 
+                                    class="transition-colors cursor-pointer"
+                                    @click="activeRow = index">
+                                    
+                                    <td class="px-4 py-2 text-center font-mono text-sm text-gray-500" x-text="index + 1"></td>
 
-                        const searchTerm = baris.id_produk_input;
-                        if (searchTerm.length < 2) return; 
-                        baris.error = ''; baris.nama_produk = 'Mencari...';
-                        try {
-                            const response = await fetch(`{{ route('admin.stok.cariProduk') }}?search=${searchTerm}`);
-                            const data = await response.json();
-                            if (data.length === 0) { baris.error = "Produk tidak ditemukan"; baris.nama_produk = '---'; baris.id_produk_final = ''; } 
-                            else if (data.length === 1) { this.isiBarisTabel(index, data, data[0]); } 
-                            else { this.searchResultsModal = data; this.searchTermModal = searchTerm; this.barisYangAkanDiisi = index; this.modalPencarianOpen = true; }
-                        } catch (error) { console.error('Gagal mencari produk:', error); baris.nama_produk = "Error koneksi..."; }
-                    },
-                    isiBarisTabel(index, semuaOpsiSatuan, satuanTerpilih) {
-                        let baris = this.barisTabel[index];
-                        baris.id_produk_input = satuanTerpilih.id_produk; baris.id_produk_final = satuanTerpilih.id_produk; baris.nama_produk = satuanTerpilih.nama_produk;
-                        baris.satuan_options = semuaOpsiSatuan.filter(p => p.id_produk === satuanTerpilih.id_produk);
-                        baris.id_satuan = satuanTerpilih.id_satuan; baris.nama_satuan_final = satuanTerpilih.nama_satuan; baris.harga_beli_satuan = satuanTerpilih.harga_pokok;
-                        
-                        // Jumlah otomatis 1
-                        baris.jumlah = 1;
+                                    {{-- KODE ITEM --}}
+                                    <td class="px-4 py-2">
+                                        <input type="text" x-model="baris.kode_item" :id="'kode_' + index"
+                                               @focus="activeRow = index"
+                                               @keydown.delete="hapusBaris(index)"
+                                               @keydown.enter.prevent="scanProduk(index)"
+                                               @keydown.tab="scanProduk(index)"
+                                               @keydown.arrow-down.prevent="fokusBawah(index, 'kode')"
+                                               @keydown.arrow-up.prevent="fokusAtas(index, 'kode')"
+                                               @keydown.arrow-right.prevent="fokusKanan(index, 'qty')"
+                                               class="w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono text-sm font-bold text-blue-700 uppercase h-9" 
+                                               placeholder="Scan...">
+                                        <p x-show="baris.error" x-text="baris.error" class="text-xs text-red-500 mt-1"></p>
+                                    </td>
 
+                                    <td class="px-4 py-2">
+                                        <input type="text" x-model="baris.nama_produk" readonly 
+                                               class="w-full bg-transparent border-transparent text-gray-600 text-sm cursor-not-allowed focus:ring-0 h-9">
+                                    </td>
+
+                                    {{-- QTY --}}
+                                    <td class="px-4 py-2">
+                                        <input type="text" inputmode="numeric" x-model="baris.jumlah" :id="'qty_' + index"
+                                               @focus="activeRow = index; $el.select()" @click="$el.select()" @input="sanitizeQty(index, $el)" 
+                                               @keydown.delete="hapusBaris(index)" @keydown.enter.prevent="fokusBawah(index, 'kode')"
+                                               @keydown.arrow-down.prevent="fokusBawah(index, 'jumlah')" @keydown.arrow-up.prevent="fokusAtas(index, 'jumlah')"
+                                               @keydown.arrow-left.prevent="fokusKiri(index, 'kode')" @keydown.arrow-right.prevent="fokusKanan(index, 'satuan')"
+                                               class="w-full text-center border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-bold h-9"
+                                               :disabled="!baris.id_produk_final">
+                                    </td>
+
+                                    {{-- SATUAN --}}
+                                    <td class="px-4 py-2">
+                                        <select x-model="baris.satuan" :id="'satuan_' + index"
+                                                @focus="activeRow = index" @change="updateHarga(index)"
+                                                @keydown.delete.prevent="hapusBaris(index)"
+                                                @keydown.enter.prevent="fokusBawah(index, 'kode')"
+                                                @keydown.arrow-down.prevent="fokusBawah(index, 'satuan')"
+                                                @keydown.arrow-up.prevent="fokusAtas(index, 'satuan')"
+                                                @keydown.arrow-left.prevent="fokusKiri(index, 'jumlah')"
+                                                @keydown.arrow-right.prevent="fokusKanan(index, 'harga')"
+                                                class="w-full text-sm border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 h-9 py-1"
+                                                :disabled="!baris.id_produk_final">
+                                            <template x-for="opsi in baris.satuan_options" :key="opsi.nama">
+                                                <option :value="opsi.nama" x-text="opsi.nama"></option>
+                                            </template>
+                                        </select>
+                                    </td>
+
+                                    {{-- HARGA BELI --}}
+                                    <td class="px-4 py-2">
+                                        <input type="text" inputmode="numeric" x-model="baris.harga" :id="'harga_' + index"
+                                               @focus="activeRow = index; $el.select()" @click="$el.select()" @input="sanitizeHarga(index, $el)"
+                                               @keydown.delete="hapusBaris(index)"
+                                               @keydown.enter.prevent="fokusBawah(index, 'kode')"
+                                               @keydown.arrow-down.prevent="fokusBawah(index, 'harga')"
+                                               @keydown.arrow-up.prevent="fokusAtas(index, 'harga')"
+                                               @keydown.arrow-left.prevent="fokusKiri(index, 'satuan')"
+                                               class="w-full text-right border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-mono h-9"
+                                               :disabled="!baris.id_produk_final">
+                                    </td>
+
+                                    <td class="px-4 py-2 text-right">
+                                        <div class="font-bold font-mono text-gray-900 dark:text-gray-100 text-lg pt-1" x-text="formatRupiah(baris.subtotal)"></div>
+                                    </td>
+
+                                    <td class="px-4 py-2 text-center">
+                                        <button type="button" :id="'hapus_' + index" @click="hapusBaris(index)" 
+                                                @keydown.arrow-left.prevent="fokusKiri(index, 'harga')"
+                                                @keydown.arrow-right.prevent="fokusBawah(index, 'kode')"
+                                                x-show="barisTabel.length > 1" class="text-gray-400 hover:text-red-600 transition-colors focus:outline-none focus:text-red-600 focus:ring-2 focus:ring-red-500 rounded" tabindex="0">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {{-- FOOTER (Tombol Simpan) --}}
+        <div class="bg-gray-200 dark:bg-gray-800 p-3 border-t border-gray-300 dark:border-gray-700 flex-shrink-0 z-20">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Shortcut: <span class="font-bold">[F2]</span> Baris Baru, <b>[END]</b> Simpan, <b>[DEL]</b> Hapus
+                </div>
+                <div class="flex space-x-2">
+                    <a href="{{ route('admin.stok.index') }}" class="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white font-bold rounded shadow flex items-center gap-2">BATAL [ESC]</a>
+                    <button @click="simpanPerubahan()" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded shadow-lg flex items-center gap-2">
+                        SIMPAN PERUBAHAN [END]
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- MODAL PENCARIAN --}}
+        <div x-show="modalPencarianOpen" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-50 flex items-center justify-center" x-transition x-cloak>
+            <div class="relative mx-auto p-0 border w-full max-w-3xl shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[80vh] flex flex-col" @click.away="modalPencarianOpen = false">
+                <div class="p-4 bg-blue-600 text-white rounded-t-md flex justify-between items-center"><h3 class="text-xl font-bold">Pilih Item (Enter)</h3><button @click="modalPencarianOpen = false" class="text-white hover:text-gray-200 text-2xl">&times;</button></div>
+                
+                <div class="p-3 bg-gray-100 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600">
+                    <input type="text" id="modal-search-input" x-model="searchQueryModal" @keydown.enter.stop.prevent="searchProdukInModal()" @keydown.arrow-down.prevent="$el.blur(); navigasiModal('bawah')" @keydown.arrow-up.prevent="$el.blur(); navigasiModal('atas')" class="w-full border-gray-300 dark:border-gray-600 rounded-md p-2 text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Cari Nama/Kode Item (Tekan Enter)...">
+                </div>
+
+                <div class="overflow-y-auto flex-1" id="modal-list-container">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700 sticky top-0"><tr><th>Kode</th><th>Nama</th><th>Satuan</th><th>Stok</th><th>Harga</th></tr></thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <template x-for="(produk, index) in searchResultsModal" :key="produk.unique_id">
+                                <tr :id="'modal-row-' + index" :class="activeModalIndex === index ? 'bg-blue-100 dark:bg-blue-900' : 'hover:bg-gray-50 dark:hover:bg-gray-700'" class="cursor-pointer transition-colors" @click="pilihProdukDariModal(produk)" @mouseover="activeModalIndex = index">
+                                    <td class="px-4 py-3 text-sm font-mono text-gray-600" x-text="produk.id_produk"></td><td class="px-4 py-3 text-sm font-bold text-gray-800 dark:text-gray-200" x-text="produk.nama_produk"></td><td class="px-4 py-3 text-center"><span class="bg-gray-200 px-2 py-1 rounded text-xs font-bold" x-text="produk.nama_satuan"></span></td><td class="px-4 py-3 text-center text-sm font-bold" :class="parseFloat(produk.stok_real.replace(',', '.')) > 0 ? 'text-green-600' : 'text-red-600'" x-text="produk.stok_real"></td><td class="px-4 py-3 text-right font-mono text-blue-600 font-bold" x-text="formatRupiah(produk.harga_pokok)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-t bg-gray-50 text-right rounded-b-lg"><button @click="modalPencarianOpen = false" class="px-4 py-2 bg-gray-500 text-white rounded text-sm">Tutup [ESC]</button></div>
+            </div>
+        </div>
+
+    </div>
+
+    @push('scripts')
+    <script>
+        function stokMasukEditForm() {
+            return {
+                // Data Awal
+                barisTabel: window.stokEditData || [], 
+                id_supplier: "{{ $batch->id_supplier }}",
+                tanggal_masuk: "{{ $batch->tanggal_masuk }}",
+                keterangan: "{{ $batch->keterangan ?? '' }}",
+                
+                // UI State
+                activeRow: 0, modalPencarianOpen: false, searchResultsModal: [], searchTermModal: '', activeModalIndex: 0, barisYangAkanDiisi: null, searchQueryModal: '', isProcessing: false,
+
+                init() {
+                    if(this.barisTabel.length === 0) this.tambahBarisBaru();
+                    // Reorder agar satuan yang tersimpan muncul pertama
+                    this.barisTabel.forEach(item => this.ensureReorderAfterFill(item));
+                },
+
+                reorderSatuanOptions(item) {
+                    if (!item || !Array.isArray(item.satuan_options)) return;
+                    const selectedName = item.satuan;
+                    if (!selectedName) return;
+                    const idx = item.satuan_options.findIndex(o => o.nama === selectedName);
+                    if (idx > 0) {
+                        const [sel] = item.satuan_options.splice(idx, 1);
+                        item.satuan_options.unshift(sel);
+                    }
+                },
+                ensureReorderAfterFill(item) { if (item.satuan) this.reorderSatuanOptions(item); },
+
+                handleGlobalKey(e) {
+                    if (this.modalPencarianOpen) {
+                        if (e.key === 'ArrowDown') { e.preventDefault(); this.navigasiModal('bawah'); }
+                        else if (e.key === 'ArrowUp') { e.preventDefault(); this.navigasiModal('atas'); }
+                        else if (e.key === 'Enter') { e.preventDefault(); this.pilihProdukViaEnter(); }
+                        else if (e.key === 'Escape') { this.modalPencarianOpen = false; }
+                        return;
+                    }
+                    if (e.key === 'End') { e.preventDefault(); this.simpanPerubahan(); }
+                    if (e.key === 'F2') { e.preventDefault(); this.tambahBarisBaru(); }
+                    if (e.key === 'Escape') { window.location.href = "{{ route('admin.stok.index') }}"; }
+                },
+
+                sanitizeQty(index, el) { let val = el.value.replace(/[^0-9]/g, ''); if (val === '') val = ''; this.barisTabel[index].jumlah = val; this.hitungSubtotal(index); },
+                sanitizeHarga(index, el) { let val = el.value.replace(/[^0-9]/g, ''); this.barisTabel[index].harga = val; this.hitungSubtotal(index); },
+                
+                hitungSubtotal(index) { const baris = this.barisTabel[index]; let jumlah = parseInt(baris.jumlah) || 0; let harga = parseInt(baris.harga) || 0; baris.subtotal = jumlah * harga; },
+                get totalFaktur() { return this.barisTabel.reduce((total, baris) => total + baris.subtotal, 0); },
+
+                updateHarga(index) {
+                    const baris = this.barisTabel[index];
+                    const opsi = baris.satuan_options.find(o => o.nama == baris.satuan);
+                    if (opsi) {
+                        baris.harga = opsi.harga;
                         this.hitungSubtotal(index);
-                        // Auto-add baris baru
-                        if (index === this.barisTabel.length - 1) { this.tambahBarisBaru(); }
-                    },
-                    pilihProdukDariModal(produk) { const index = this.barisYangAkanDiisi; this.isiBarisTabel(index, this.searchResultsModal, produk); this.modalPencarianOpen = false; this.searchResultsModal = []; this.barisYangAkanDiisi = null; },
-                    updateHargaDanNamaSatuan(index) {
-                        const baris = this.barisTabel[index];
-                        const selectedSatuan = baris.satuan_options.find(s => s.id_satuan == baris.id_satuan);
-                        if (selectedSatuan) { 
-                            baris.harga_beli_satuan = selectedSatuan.harga_pokok; 
-                            baris.nama_satuan_final = selectedSatuan.nama_satuan; 
-                            this.hitungSubtotal(index); 
+                    }
+                },
+
+                async simpanPerubahan() {
+                    if (this.isProcessing) return;
+                    this.isProcessing = true;
+
+                    const items = this.barisTabel.filter(b => b.id_produk_final).map(item => ({
+                        id_produk: item.id_produk_final,
+                        jumlah: item.jumlah,
+                        nama_satuan: item.satuan,
+                        harga_beli_satuan: item.harga
+                    }));
+
+                    if (items.length === 0) { alert('Belum ada barang!'); this.isProcessing = false; return; }
+
+                    const payload = {
+                        id_supplier: this.id_supplier,
+                        tanggal_masuk: this.tanggal_masuk,
+                        keterangan: this.keterangan,
+                        detail: items
+                    };
+
+                    try {
+                        const response = await fetch("{{ route('admin.stok.update', $batch->id_batch_stok) }}", {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (response.ok || response.redirected) {
+                            alert('Stok berhasil diupdate!');
+                            window.location.href = "{{ route('admin.stok.index') }}";
+                        } else {
+                            const result = await response.json();
+                            alert('Gagal: ' + result.message);
+                            this.isProcessing = false;
                         }
-                    },
-                    hitungSubtotal(index) { const baris = this.barisTabel[index]; baris.subtotal = baris.jumlah * baris.harga_beli_satuan; },
-                    get totalFaktur() { return this.barisTabel.reduce((total, baris) => total + baris.subtotal, 0); }
-                }
+                    } catch (error) { console.error(error); alert('Terjadi kesalahan.'); this.isProcessing = false; }
+                },
+
+                // ... (Fungsi navigasi & scan standar - sama seperti sebelumnya) ...
+                tambahBarisBaru() { this.barisTabel.push({ id_temp: Date.now() + Math.random(), kode_item: '', id_produk_final: '', nama_produk: '---', satuan_options: [], satuan: '', jumlah: 1, harga: 0, subtotal: 0, error: '' }); this.activeRow = this.barisTabel.length - 1; this.$nextTick(() => { document.getElementById('kode_' + this.activeRow)?.focus(); }); },
+                hapusBaris(index) { this.barisTabel.splice(index, 1); if(this.barisTabel.length === 0) { this.tambahBarisBaru(); } else { this.activeRow = Math.min(index, this.barisTabel.length - 1); this.$nextTick(() => document.getElementById('kode_' + this.activeRow)?.focus()); } },
+                async scanProduk(index) { if (this.modalPencarianOpen) return; const baris = this.barisTabel[index]; const kode = baris.kode_item; if (kode.length < 2) return; if (baris.id_produk_final) return; try { const response = await fetch(`{{ route('admin.stok.cariProduk') }}?search=${kode}`); const data = await response.json(); if (data.length === 0) { baris.error = 'Produk tidak ditemukan!'; baris.nama_produk = '---'; } else if (data.length === 1) { this.isiBaris(index, data, data[0]); } else { this.searchResultsModal = data; this.activeModalIndex = 0; this.searchQueryModal = kode; this.barisYangAkanDiisi = index; this.modalPencarianOpen = true; this.$nextTick(() => { document.getElementById('modal-search-input').focus(); document.getElementById('modal-search-input').select(); }); } } catch (error) { console.error(error); } },
+                async searchProdukInModal() { if (this.searchQueryModal.length < 2) return; try { const response = await fetch(`{{ route('admin.stok.cariProduk') }}?search=${this.searchQueryModal}`); const data = await response.json(); this.searchResultsModal = data; this.activeModalIndex = 0; } catch (error) { console.error(error); } },
+                isiBaris(index, semuaOpsi, produkTerpilih) { const baris = this.barisTabel[index]; baris.id_produk_final = produkTerpilih.id_produk; baris.kode_item = produkTerpilih.id_produk; baris.nama_produk = produkTerpilih.nama_produk; baris.satuan_options = semuaOpsi.filter(p => p.id_produk === produkTerpilih.id_produk).map(p => ({ nama: p.nama_satuan, harga: p.harga_pokok })); baris.satuan = produkTerpilih.nama_satuan; baris.harga = produkTerpilih.harga_pokok; baris.error = ''; this.ensureReorderAfterFill(baris); this.hitungSubtotal(index); this.$nextTick(() => { document.getElementById('qty_' + index)?.focus(); }); if (index === this.barisTabel.length - 1) { this.tambahBarisBaru(); } },
+                pilihProdukDariModal(produk) { if (this.barisYangAkanDiisi !== null) { this.isiBaris(this.barisYangAkanDiisi, this.searchResultsModal, produk); this.modalPencarianOpen = false; this.searchResultsModal = []; this.barisYangAkanDiisi = null; } },
+                fokusBawah(index, colName) { if (this.modalPencarianOpen) return; const nextIndex = index + 1; if (nextIndex < this.barisTabel.length) { this.activeRow = nextIndex; document.getElementById(colName + '_' + nextIndex)?.focus(); } else { this.tambahBarisBaru(); } },
+                fokusAtas(index, colName) { if (this.modalPencarianOpen) return; if (index > 0) { this.activeRow = index - 1; document.getElementById(colName + '_' + (index - 1))?.focus(); } },
+                fokusKanan(index, nextCol) { if (this.modalPencarianOpen) return; document.getElementById(nextCol + '_' + index)?.focus(); },
+                fokusKiri(index, prevCol) { if (this.modalPencarianOpen) return; document.getElementById(prevCol + '_' + index)?.focus(); },
+                navigasiModal(arah) { if (arah === 'bawah') { if (this.activeModalIndex < this.searchResultsModal.length - 1) this.activeModalIndex++; this.scrollToModalItem(); } else if (arah === 'atas') { if (this.activeModalIndex > 0) this.activeModalIndex--; this.scrollToModalItem(); } },
+                scrollToModalItem() { const el = document.getElementById('modal-row-' + this.activeModalIndex); el?.scrollIntoView({ block: 'nearest' }); },
+                pilihProdukViaEnter() { if (this.searchResultsModal.length > 0) { this.pilihProdukDariModal(this.searchResultsModal[this.activeModalIndex]); } },
+                formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka || 0); }
             }
-        </script>
-        @endpush
-    </x-app-layout>
+        }
+    </script>
+    @endpush
+</x-app-layout>

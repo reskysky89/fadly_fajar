@@ -474,6 +474,7 @@
                         items: this.barisTabel.filter(b => b.id_produk_final).map(item => ({ 
                             id_produk: item.id_produk_final, 
                             qty: item.qty, 
+                            id_satuan: item.id_satuan,
                             satuan: item.opsi_satuan.find(o => o.id == item.id_satuan)?.nama || 'PCS', 
                             harga: item.harga, 
                             subtotal: item.subtotal 

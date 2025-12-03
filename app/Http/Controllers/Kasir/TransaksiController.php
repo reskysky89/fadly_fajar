@@ -135,7 +135,8 @@ class TransaksiController extends Controller
             'items'        => 'required|array|min:1', // Harus ada barang
             'items.*.id_produk' => 'required|exists:produk,id_produk',
             'items.*.qty'       => 'required|integer|min:1',
-            'items.*.satuan'    => 'required|string',
+            'items.*.satuan'    => 'required|string', // Nama Satuan (PCS/DUS)
+            'items.*.id_satuan' => 'required',
         ]);
 
         try {
@@ -180,7 +181,8 @@ class TransaksiController extends Controller
                     'id_transaksi' => $transaksi->id_transaksi,
                     'id_produk'    => $item['id_produk'],
                     'jumlah'       => $item['qty'],
-                    'satuan'       => $item['satuan'], // Simpan satuan (PCS/DUS)
+                    'id_satuan'    => $item['id_satuan'], // Simpan ID
+                    'satuan'       => $item['satuan'],    // Simpan Nama juga (sebagai backup)
                     'harga_satuan' => $item['harga'],
                     'subtotal'     => $item['subtotal'],
                 ]);

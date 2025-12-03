@@ -29,6 +29,7 @@ class StokMasukDetail extends Model
         'id_batch_stok',
         'id_produk',
         'jumlah',
+        'id_satuan',
         'satuan',
         'harga_beli_satuan',
     ];
