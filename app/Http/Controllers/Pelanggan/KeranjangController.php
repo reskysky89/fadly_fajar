@@ -61,11 +61,34 @@ class KeranjangController extends Controller
         $request->validate(['jumlah' => 'required|integer|min:1']);
         
         $item = Keranjang::where('id_keranjang', $id)->where('id_user', Auth::id())->firstOrFail();
+        
+        // Update Database
         $item->update(['jumlah' => $request->jumlah]);
         
-        return back()->with('success', 'Jumlah barang berhasil diubah!');
-    }
+        // --- RESPON JSON (PENTING UNTUK AJAX) ---
+        if ($request->ajax() || $request->wantsJson()) {
+            
+            // Hitung Ulang Subtotal Item Ini
+            $subtotal = $item->harga_saat_ini * $item->jumlah;
 
+            // Hitung Ulang Grand Total Keranjang
+            $seluruhKeranjang = Keranjang::where('id_user', Auth::id())->get();
+            $grandTotal = $seluruhKeranjang->sum(fn($i) => $i->harga_saat_ini * $i->jumlah);
+            
+            // Hitung Jumlah Item untuk Badge Navbar
+            $cartCount = $seluruhKeranjang->count();
+
+            return response()->json([
+                'success' => true,
+                'subtotal' => number_format($subtotal, 0, ',', '.'),
+                'grand_total' => number_format($grandTotal, 0, ',', '.'),
+                'cart_count' => $cartCount
+            ]);
+        }
+        // ----------------------------------------
+        
+        return back()->with('success', 'Keranjang diperbarui');
+    }
     // Hapus Barang
     public function destroy($id)
     {
