@@ -33,8 +33,19 @@ class Transaksi extends Model
         'metode_bayar',
         'status_pesanan',
         'jenis_transaksi',
-        'tipe_transaksi'
+        'tipe_transaksi',
+        'status_pesanan',
+        'metode_bayar',
+        
+        'metode_pengiriman', // <--- PASTIKAN INI ADA! (Jangan sampai ketinggalan)
+        
+        'keterangan'
     ];
+    public function pelanggan()
+    {
+        return $this->belongsTo(User::class, 'id_user_pelanggan', 'id_user');
+    }
+
 
     // Relasi ke Detail Barang
     public function details(): HasMany

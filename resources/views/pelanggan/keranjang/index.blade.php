@@ -19,8 +19,7 @@
                         @foreach($keranjang as $item)
                             <li class="p-4 flex items-center gap-4 hover:bg-gray-50 transition"
                                 {{-- PERBAIKAN: Kirim URL Update langsung dari PHP --}}
-                                x-data="cartItem('{{ route('keranjang.update', $item->id_keranjang) }}', {{ $item->jumlah }})">
-                                
+                                x-data="cartItem('{{ route('keranjang.update', $item->id_keranjang) }}', {{ $item->jumlah }}, {{ $item->max_qty }})">
                                 {{-- Gambar --}}
                                 <div class="w-20 h-20 flex-shrink-0 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden">
                                     @if($item->produk->gambar)
@@ -95,15 +94,20 @@
     </div>
 
     <script>
-        function cartItem(url, initialQty) {
+        function cartItem(url, initialQty, maxStock) {
             return {
                 url: url, // Simpan URL Update
                 qty: initialQty,
+                max: maxStock,
                 subtotal: null,
                 isLoading: false,
 
                 async updateQty(newQty) {
                     if (newQty < 1) return;
+                    if (newQty > this.max) {
+                        alert('Stok tidak cukup! Maksimal tersedia: ' + this.max);
+                        return; // Stop, jangan update
+                    }
                     
                     // Simpan nilai lama
                     const oldQty = this.qty;

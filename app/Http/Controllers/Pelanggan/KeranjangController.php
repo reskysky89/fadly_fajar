@@ -99,8 +99,56 @@ class KeranjangController extends Controller
     }
     
     // 2. Halaman Keranjang (Nanti kita isi)
-    public function index() {
-        $keranjang = Keranjang::with('produk')->where('id_user', Auth::id())->get();
+    public function index()
+    {
+        $keranjang = Keranjang::with(['produk.satuanDasar', 'produk.stokMasukDetails', 'produk.detailTransaksis', 'produk.produkKonversis'])
+                              ->where('id_user', Auth::id())
+                              ->get();
+
+        // --- LOGIKA HITUNG MAX STOK PER ITEM ---
+        foreach ($keranjang as $item) {
+            $produk = $item->produk;
+            $satuan_dasar = $produk->satuanDasar->nama_satuan ?? 'PCS';
+            
+            // 1. Hitung Stok Fisik (Dalam Satuan Dasar)
+            $masuk = 0;
+            foreach ($produk->stokMasukDetails as $d) {
+                $jml = $d->jumlah;
+                if ($d->satuan !== $satuan_dasar) {
+                    $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                    if ($konv) $jml *= $konv->nilai_konversi;
+                }
+                $masuk += $jml;
+            }
+
+            $keluar = 0;
+            foreach ($produk->detailTransaksis as $d) {
+                $jml = $d->jumlah;
+                if ($d->satuan !== $satuan_dasar) {
+                    $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                    if ($konv) $jml *= $konv->nilai_konversi;
+                }
+                $keluar += $jml;
+            }
+            
+            $stok_sisa_dasar = $masuk - $keluar;
+
+            // 2. Konversi ke Satuan yang Ada di Keranjang
+            // Misal sisa 50 PCS, di keranjang satuannya DUS (isi 10). Maka Max = 5.
+            $max_qty = $stok_sisa_dasar; // Default (jika satuan dasar)
+
+            if ($item->satuan !== $satuan_dasar) {
+                $konversi = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $item->satuan);
+                if ($konversi && $konversi->nilai_konversi > 0) {
+                    $max_qty = floor($stok_sisa_dasar / $konversi->nilai_konversi);
+                }
+            }
+
+            // Simpan ke object item untuk dikirim ke View
+            $item->max_qty = $max_qty;
+        }
+        // ---------------------------------------
+        
         return view('pelanggan.keranjang.index', compact('keranjang'));
     }
 

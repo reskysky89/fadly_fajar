@@ -11,41 +11,35 @@ class HomeController extends Controller
 {
     public function index(Request $request)
     {
-        // 1. Ambil Kategori untuk Menu
         $kategoris = \App\Models\Kategori::all(); 
 
-        // 2. Query Produk Dasar
         $query = Produk::with(['satuanDasar', 'kategori', 'stokMasukDetails', 'detailTransaksis', 'produkKonversis.satuan'])
                        ->where('status_produk', 'aktif');
 
-        // 3. Logika Pencarian (Search)
         if ($request->has('search') && $request->search != '') {
             $query->where('nama_produk', 'like', '%' . $request->search . '%');
         }
 
-        // 4. LOGIKA FILTER KATEGORI (BARU)
         if ($request->has('kategori') && $request->kategori != '') {
             $query->where('id_kategori', $request->kategori);
         }
 
-        // 5. Ambil Data & Pagination
         $produks = $query->latest()->paginate(12);
-        
-        // Agar filter tidak hilang saat pindah halaman 1, 2, 3...
         $produks->appends($request->all()); 
+
+        // Ambil ID Keranjang (Untuk Badge)
         $cartProductIds = [];
-        if (Auth::check()) {
-            // Ambil hanya kolom id_produk, jadikan array sederhana
-            $cartProductIds = Keranjang::where('id_user', Auth::id())
+        if (\Illuminate\Support\Facades\Auth::check()) {
+            $cartProductIds = \App\Models\Keranjang::where('id_user', \Illuminate\Support\Facades\Auth::id())
                                        ->pluck('id_produk')
                                        ->toArray();
         }
 
-        // 6. Kalkulasi Stok (Sama seperti sebelumnya)
+        // Kalkulasi Stok & Satuan
         $produks->getCollection()->transform(function ($produk) {
             $satuan_dasar = $produk->satuanDasar->nama_satuan ?? 'PCS';
             
-            // Hitung Masuk
+            // Hitung Stok Real (PCS)
             $masuk = 0;
             foreach ($produk->stokMasukDetails as $d) {
                 $jml = $d->jumlah;
@@ -56,7 +50,6 @@ class HomeController extends Controller
                 $masuk += $jml;
             }
 
-            // Hitung Keluar
             $keluar = 0;
             foreach ($produk->detailTransaksis as $d) {
                 $jml = $d->jumlah;
@@ -69,29 +62,73 @@ class HomeController extends Controller
 
             $stok_dasar = $masuk - $keluar;
 
-            // Unit List (Untuk Dropdown Frontend)
+            // --- PERBAIKAN DI SINI: Tambahkan 'conversion' ---
             $units = [];
+            
+            // 1. Satuan Dasar
             $units[] = [
                 'name' => $satuan_dasar,
                 'price' => $produk->harga_jual_dasar,
+                'conversion' => 1, // <-- Default 1
                 'stock_display' => $stok_dasar 
             ];
 
+            // 2. Satuan Konversi
             foreach ($produk->produkKonversis as $konv) {
-                $stok_konv = ($konv->nilai_konversi > 0) ? floor($stok_dasar / $konv->nilai_konversi) : 0;
+                $nilai_konversi = $konv->nilai_konversi > 0 ? $konv->nilai_konversi : 1;
+                $stok_konv = floor($stok_dasar / $nilai_konversi);
+                
                 $units[] = [
                     'name' => $konv->satuan->nama_satuan,
                     'price' => $konv->harga_jual_konversi,
+                    'conversion' => $nilai_konversi, // <-- INI KUNCINYA
                     'stock_display' => $stok_konv
                 ];
             }
+            // -----------------------------------------------
 
             $produk->units_list = $units;
-            $produk->stok_ready = $stok_dasar; // Indikator utama
+            $produk->stok_ready = $stok_dasar; 
 
             return $produk;
         });
 
         return view('welcome', compact('produks', 'kategoris', 'cartProductIds'));
+    }
+    public function cekStok($id)
+    {
+        $produk = Produk::with(['stokMasukDetails', 'detailTransaksis', 'satuanDasar', 'produkKonversis.satuan'])
+                        ->where('id_produk', $id)
+                        ->first();
+
+        if (!$produk) return response()->json(['stok' => 0]);
+
+        $satuan_dasar = $produk->satuanDasar->nama_satuan ?? 'PCS';
+            
+        // 1. Hitung Masuk
+        $masuk = 0;
+        foreach ($produk->stokMasukDetails as $d) {
+            $jml = $d->jumlah;
+            if ($d->satuan !== $satuan_dasar) {
+                $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                if ($konv) $jml *= $konv->nilai_konversi;
+            }
+            $masuk += $jml;
+        }
+
+        // 2. Hitung Keluar
+        $keluar = 0;
+        foreach ($produk->detailTransaksis as $d) {
+            $jml = $d->jumlah;
+            if ($d->satuan !== $satuan_dasar) {
+                $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                if ($konv) $jml *= $konv->nilai_konversi;
+            }
+            $keluar += $jml;
+        }
+
+        $stok_real = $masuk - $keluar;
+
+        return response()->json(['stok' => $stok_real]);
     }
 }

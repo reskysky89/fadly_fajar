@@ -5,7 +5,7 @@
     <div class="bg-gradient-to-r from-blue-700 to-blue-500 text-white py-12 mb-4 shadow-md">
         <div class="max-w-screen-xl mx-auto px-4 text-center">
             <h1 class="text-3xl md:text-5xl font-extrabold mb-4 tracking-tight">Belanja Grosir Lebih Mudah</h1>
-            <p class="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">Dapatkan harga terbaik, cek stok real-time, dan belanja kebutuhan toko Anda langsung dari sini.</p>
+            <p class="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">Dapatkan harga terbaik, cek stok real-time, dan belanja kebutuhan Anda langsung dari sini.</p>
             
             {{-- Search Bar Mobile --}}
             <div class="md:hidden max-w-md mx-auto relative">
@@ -56,15 +56,43 @@
                          x-data="{ 
                              units: {{ json_encode($produk->units_list) }},
                              selected: {{ json_encode($produk->units_list[0]) }},
+                             rawStock: {{ $produk->stok_ready }}, // Stok awal (PCS)
                              isAdding: false,
-                             // INI LOGIKA BARUNYA:
-                             // inCart akan bernilai true jika ID produk ada di array PHP cartProductIds
                              inCart: {{ in_array($produk->id_produk, $cartProductIds ?? []) ? 'true' : 'false' }},
 
-                             changeUnit(e) { const idx = e.target.selectedIndex; this.selected = this.units[idx]; },
+                             // --- FUNGSI AUTO UPDATE (CCTV) ---
+                             init() {
+                                 // Cek stok setiap 5 detik (biar tidak memberatkan server)
+                                 setInterval(() => { this.syncStock() }, 5000);
+                             },
+
+                             async syncStock() {
+                                 try {
+                                     const res = await fetch('/api/cek-stok/{{ $produk->id_produk }}');
+                                     const data = await res.json();
+                                     this.rawStock = data.stok; // Update Stok Pusat
+                                     this.calculateDisplay();   // Hitung ulang tampilan
+                                 } catch(e) { console.log('Gagal sync stok'); }
+                             },
+
+                             // Hitung ulang stok berdasarkan satuan yang dipilih (Misal: Sisa 50 PCS -> Pilih DUS isi 10 -> Tampil 5)
+                             calculateDisplay() {
+                                 let konversi = this.selected.conversion || 1;
+                                 // Update angka stok di tampilan
+                                 this.selected.stock_display = Math.floor(this.rawStock / konversi);
+                             },
+                             
+                             changeUnit(e) { 
+                                 const idx = e.target.selectedIndex; 
+                                 this.selected = this.units[idx]; 
+                                 this.calculateDisplay(); // Hitung ulang saat ganti satuan
+                             },
+                             // --------------------------------
+
                              formatRupiah(angka) { return new Intl.NumberFormat('id-ID').format(angka); },
 
                              async addToCart(item) {
+                                 // ... (Isi fungsi addToCart sama seperti sebelumnya, tidak berubah) ...
                                  this.isAdding = true;
                                  try {
                                      const response = await fetch('{{ route('keranjang.tambah') }}', {
@@ -73,16 +101,10 @@
                                          body: JSON.stringify({ id_produk: '{{ $produk->id_produk }}', satuan: item.name, harga: item.price })
                                      });
                                      const result = await response.json();
-
                                      if (response.ok) {
-                                         // 1. Update Angka Navbar
                                          window.dispatchEvent(new CustomEvent('cart-updated', { detail: { count: result.cart_count } }));
-                                         
-                                         // 2. UPDATE LIVE BADGE DI KARTU INI
                                          this.inCart = true; 
-                                     } else {
-                                         alert('Gagal: ' + result.message);
-                                     }
+                                     } else { alert('Gagal: ' + result.message); }
                                  } catch (error) { console.error(error); }
                                  this.isAdding = false;
                              }

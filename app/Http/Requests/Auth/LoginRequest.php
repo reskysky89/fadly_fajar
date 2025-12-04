@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Http\Requests\Auth;
-
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -11,69 +12,70 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        // --- PERUBAHAN 1: Mengganti 'email' menjadi 'login' ---
-        // Kita tidak lagi memvalidasi 'email', tapi 'login'
         return [
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
-        // --- AKHIR PERUBAHAN 1 ---
     }
 
-    /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
+    public function messages()
+    {
+        return [
+            'login.required'    => 'Email atau Username wajib diisi dulu!',
+            'password.required' => 'Password-nya jangan dikosongin dong!',
+        ];
+    }
+
     public function authenticate(): void
     {
         $this->ensureIsNotRateLimited();
 
-        // --- PERUBAHAN 2: Logika utama untuk 'email' atau 'username' ---
-        // Mengganti baris "if (! Auth::attempt...)" yang lama dengan logika ini
+        $input = $this->input('login');
+        $password = $this->input('password');
 
-        // 2a. Deteksi apakah input 'login' adalah email atau username
-        $loginField = filter_var($this->input('login'), FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        // 1. LOGIKA CARI USER (Cek apakah Username/Email ada di database?)
+        $user = User::where('email', $input)
+                    ->orWhere('username', $input)
+                    ->first();
 
-        // 2b. Buat array credentials berdasarkan hasil deteksi
-        $credentials = [
-            $loginField => $this->input('login'),
-            'password' => $this->input('password')
-        ];
+        // KONDISI 1: AKUN TIDAK DITEMUKAN (Username Salah)
+        if (! $user) {
+            RateLimiter::hit($this->throttleKey());
+            
+            throw ValidationException::withMessages([
+                'login' => 'Akun tidak ditemukan. Username/Email salah.',
+            ]);
+        }
 
-        // 2c. Coba login menggunakan credentials tersebut
-        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
+        // KONDISI 2: AKUN ADA, TAPI PASSWORD SALAH
+        if (! Hash::check($password, $user->password)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'login' => trans('auth.failed'), // <-- 'email' diubah menjadi 'login'
+                'login' => 'Password salah.', // Pesan error spesifik
             ]);
         }
-        // --- AKHIR PERUBAHAN 2 ---
+        
+        // KONDISI 3: CEK STATUS AKUN (Opsional tapi bagus)
+        if ($user->status_akun !== 'aktif') {
+             RateLimiter::hit($this->throttleKey());
+             throw ValidationException::withMessages([
+                'login' => 'Akun ini telah dinonaktifkan oleh Admin.',
+            ]);
+        }
 
+        // JIKA SEMUA BENAR -> LOGIN
+        Auth::login($user, $this->boolean('remember'));
         RateLimiter::clear($this->throttleKey());
     }
 
-    /**
-     * Ensure the login request is not rate limited.
-     *
-     * @throws \Illuminate\Validation\ValidationException
-     */
     public function ensureIsNotRateLimited(): void
     {
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
@@ -84,23 +86,16 @@ class LoginRequest extends FormRequest
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
-        // --- PERUBAHAN 3: Ganti 'email' di pesan error ---
         throw ValidationException::withMessages([
-            'login' => trans('auth.throttle', [ // <-- 'email' diubah menjadi 'login'
+            'login' => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
         ]);
-        // --- AKHIR PERUBAHAN 3 ---
     }
 
-    /**
-     * Get the rate limiting throttle key for the request.
-     */
     public function throttleKey(): string
     {
-        // --- PERUBAHAN 4: Ganti 'email' di throttle key ---
-        return Str::transliterate(Str::lower($this->string('login')).'|'.$this->ip()); // <-- 'email' diubah menjadi 'login'
-        // --- AKHIR PERUBAHAN 4 ---
+        return Str::transliterate(Str::lower($this->input('login')).'|'.$this->ip());
     }
 }

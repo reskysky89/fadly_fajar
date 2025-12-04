@@ -7,11 +7,13 @@ use App\Http\Controllers\Admin\KategoriController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\StokMasukController;
 use App\Http\Controllers\Admin\KasirController;
+use App\Http\Controllers\Admin\PesananOnlineController;
 use App\Http\Controllers\Kasir\TransaksiController;
 use App\Http\Controllers\Admin\LaporanPenjualanController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Pelanggan\KeranjangController;
 use App\Http\Controllers\Pelanggan\CheckoutController;
+use App\Http\Controllers\Pelanggan\RiwayatPesananController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +30,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
+    Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
+    Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
+    Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
+    Route::put('/pesanan-online/{id}/batal', [PesananOnlineController::class, 'batalkan'])->name('pesanan.batal');
+    
 });
 
 // --- TAMBAKAN BLOK KODE BARU ANDA DI SINI --- //
@@ -123,9 +131,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/keranjang/{id}', [KeranjangController::class, 'update'])->name('keranjang.update');
     Route::delete('/keranjang/{id}', [KeranjangController::class, 'destroy'])->name('keranjang.destroy');
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');   // Nanti kita buat
+    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); 
+    Route::get('/riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('pelanggan.riwayat');
 
 });
+Route::get('/api/cek-stok/{id}', [App\Http\Controllers\HomeController::class, 'cekStok'])->name('api.cekStok');
 
 // --- AKHIR BLOK KODE BARU --- //
 
