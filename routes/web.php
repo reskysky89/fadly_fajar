@@ -137,6 +137,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); 
     Route::get('/riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('pelanggan.riwayat');
     Route::put('/riwayat-pesanan/{id}/batal', [RiwayatPesananController::class, 'batalkanPesanan'])->name('pelanggan.riwayat.batal');
+    Route::post('/ulasan', [App\Http\Controllers\Pelanggan\UlasanController::class, 'store'])->name('ulasan.store');
 
 });
 Route::get('/api/cek-stok/{id}', [App\Http\Controllers\HomeController::class, 'cekStok'])->name('api.cekStok');

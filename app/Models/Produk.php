@@ -49,4 +49,8 @@ class Produk extends Model
         // 'id_produk' adalah foreign key di tabel 'detail_transaksi'
         return $this->hasMany(DetailTransaksi::class, 'id_produk', 'id_produk');
     }
+    public function ulasans()
+    {
+        return $this->hasMany(Ulasan::class, 'id_produk', 'id_produk');
+    }
 }

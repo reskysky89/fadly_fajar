@@ -114,11 +114,17 @@
                         <div class="h-48 w-full bg-gray-50 relative overflow-hidden">
                             
                             {{-- BADGE: SUDAH DI KERANJANG (Sekarang pakai x-show, jadi reaktif) --}}
-                            <div x-show="inCart" x-transition class="absolute top-2 left-2 z-10">
-                                <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded shadow flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                                    Di Keranjang
-                                </span>
+                            <div x-show="inCart" 
+                                 x-transition:enter="transition ease-out duration-300"
+                                 x-transition:enter-start="opacity-0 scale-50"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 class="absolute top-2 left-2 z-20">
+                                <div class="bg-blue-600 text-white p-1.5 rounded-full shadow-lg border-2 border-white flex items-center justify-center" title="Barang ini ada di keranjang Anda">
+                                    {{-- Ikon Keranjang + Centang --}}
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                </div>
                             </div>
                             {{-- -------------------------------------------------------------- --}}
 
@@ -128,9 +134,16 @@
                                 <div class="w-full h-full flex items-center justify-center text-gray-300"><svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
                             @endif
 
-                            <div class="absolute top-2 right-2">
-                                <span x-show="selected.stock_display > 0" class="bg-green-500 text-white text-xs font-bold px-2 py-1 rounded shadow">Stok: <span x-text="selected.stock_display"></span> <span x-text="selected.name"></span></span>
-                                <span x-show="selected.stock_display <= 0" class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded shadow">Habis</span>
+                            {{-- INFO STOK (Diperkecil sedikit fontnya untuk Mobile) --}}
+                            <div class="absolute top-2 right-2 z-10 max-w-[70%] text-right">
+                                <span x-show="selected.stock_display > 0" 
+                                      class="inline-block bg-green-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded shadow-sm bg-opacity-90 backdrop-blur-sm">
+                                    Stok: <span x-text="selected.stock_display"></span> <span x-text="selected.name"></span>
+                                </span>
+                                <span x-show="selected.stock_display <= 0" 
+                                      class="inline-block bg-red-500 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded shadow-sm bg-opacity-90 backdrop-blur-sm">
+                                    Habis
+                                </span>
                             </div>
                         </div>
 
@@ -184,4 +197,55 @@
             </div>
         @endif
     </div>
+    
+    @if($ulasanTerbaru->count() > 0)
+        <div class="mt-16 mb-8">
+            <div class="text-center mb-10">
+                <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900">Apa Kata Mereka?</h2>
+                <p class="text-gray-500 mt-2">Pengalaman belanja asli dari pelanggan setia Toko Fadly Fajar.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach($ulasanTerbaru as $review)
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition duration-300 flex flex-col h-full">
+                        
+                        {{-- Header: User & Rating --}}
+                        <div class="flex items-center gap-4 mb-4">
+                            {{-- Avatar Inisial --}}
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                                {{ substr($review->user->nama, 0, 1) }}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-900 text-sm">{{ $review->user->nama }}</h4>
+                                <div class="flex text-yellow-400 text-xs mt-0.5">
+                                    @for($i=1; $i<=5; $i++)
+                                        <svg class="w-4 h-4 {{ $i <= $review->rating ? 'fill-current' : 'text-gray-200 fill-current' }}" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                    @endfor
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Isi Komentar --}}
+                        <div class="flex-1">
+                            <svg class="w-8 h-8 text-gray-200 mb-2 opacity-50" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21L14.017 18C14.017 16.8954 14.9124 16 16.017 16H19.017C19.5693 16 20.017 15.5523 20.017 15V9C20.017 8.44772 19.5693 8 19.017 8H15.017C14.4647 8 14.017 8.44772 14.017 9V11C14.017 11.5523 13.5693 12 13.017 12H12.017V5H22.017V15C22.017 16.6569 20.6739 18 19.017 18H16.017C14.9124 18 14.017 18.8954 14.017 20V21zM5.0166 21L5.0166 18C5.0166 16.8954 5.91203 16 7.0166 16H10.0166C10.5689 16 11.0166 15.5523 11.0166 15V9C11.0166 8.44772 10.5689 8 10.0166 8H6.0166C5.46432 8 5.0166 8.44772 5.0166 9V11C5.0166 11.5523 4.56889 12 4.0166 12H3.0166V5H13.0166V15C13.0166 16.6569 11.6735 18 10.0166 18H7.0166C5.91203 18 5.0166 18.8954 5.0166 20V21z"/></svg>
+                            <p class="text-gray-600 text-sm italic leading-relaxed">
+                                "{{ $review->komentar ?? 'Barang bagus, pengiriman cepat!' }}"
+                            </p>
+                        </div>
+
+                        {{-- Footer: Produk & Tanggal --}}
+                        <div class="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center text-xs">
+                            <span class="text-gray-400">{{ $review->created_at->diffForHumans() }}</span>
+                            {{-- Kita tampilkan ID Transaksi karena ini review transaksi --}}
+                            <span class="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded">
+                                #{{ $review->id_transaksi }}
+                            </span>
+                        </div>
+
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
 @endcomponent

@@ -35,6 +35,12 @@ class HomeController extends Controller
                                        ->toArray();
         }
 
+        $ulasanTerbaru = \App\Models\Ulasan::with(['user', 'produk'])
+                                           ->latest()
+                                           ->take(6) // Ambil 6 ulasan
+                                           ->get();
+        
+
         // Kalkulasi Stok & Satuan
         $produks->getCollection()->transform(function ($produk) {
             $satuan_dasar = $produk->satuanDasar->nama_satuan ?? 'PCS';
@@ -84,6 +90,7 @@ class HomeController extends Controller
                     'conversion' => $nilai_konversi, // <-- INI KUNCINYA
                     'stock_display' => $stok_konv
                 ];
+            
             }
             // -----------------------------------------------
 
@@ -93,7 +100,7 @@ class HomeController extends Controller
             return $produk;
         });
 
-        return view('welcome', compact('produks', 'kategoris', 'cartProductIds'));
+        return view('welcome', compact('produks', 'kategoris', 'cartProductIds', 'ulasanTerbaru'));
     }
     public function cekStok($id)
     {
