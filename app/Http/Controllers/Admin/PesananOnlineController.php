@@ -1,7 +1,9 @@
 <?php
 
 namespace App\Http\Controllers\Admin;
-
+use App\Notifications\PesananSelesaiNotification;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PesananSelesaiMail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Transaksi;
@@ -47,21 +49,33 @@ class PesananOnlineController extends Controller
 
             $transaksi->update([
                 'status_pesanan' => 'selesai',
-                'id_user_kasir'  => Auth::id(), // Siapa yang memproses (Admin/Kasir)
+                'id_user_kasir'  => Auth::id(), 
                 'nama_kasir'     => Auth::user()->nama,
                 'bayar'          => $request->bayar,
                 'kembalian'      => $request->bayar - $transaksi->total_harga,
-                'waktu_transaksi'=> now(), // Update waktu jadi waktu pembayaran
+                
+                // --- HAPUS BARIS DI BAWAH INI ---
+                // 'waktu_transaksi'=> now(), 
+                // --------------------------------
+                // Biarkan waktu transaksi tetap sesuai saat pelanggan checkout.
             ]);
 
-            // Catatan: Stok sebenarnya sudah kita potong di 'stok_ready' view, 
-            // tapi untuk memastikan data konsisten, saat 'diproses' stok belum terpotong di tabel stok_keluar secara permanen?
-            // Sesuai logika kita sebelumnya (Realtime Stok), stok dihitung dari (Masuk - Keluar).
-            // DetailTransaksi sudah tersimpan saat checkout, jadi stok SUDAH TERPOTONG secara logika hitungan.
-            // Jadi kita CUKUP update statusnya saja. Aman.
-
             DB::commit();
-            return back()->with('success', 'Pesanan berhasil diselesaikan! Struk siap dicetak.');
+            if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
+                try {
+                    Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
+                } catch (\Exception $e) {
+                    // Email gagal? Biarkan saja, jangan gagalkan transaksi.
+                    // Cukup log error-nya jika perlu.
+                }
+            }
+
+            if ($transaksi->pelanggan) {
+                $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
+            }
+            // -----------------------------------------------
+
+            return back()->with('success', 'Pesanan selesai! Notifikasi email & website terkirim.');
 
         } catch (\Exception $e) {
             DB::rollBack();

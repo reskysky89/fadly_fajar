@@ -8,52 +8,27 @@
             <span class="font-bold text-gray-900">Checkout</span>
         </div>
         
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-8">Penyelesaian Pesanan</h1>
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-8">Pengiriman & Pembayaran</h1>
 
-        {{-- X-DATA untuk Logika Tampil/Sembunyi Alamat --}}
+        {{-- PENAMPIL ERROR --}}
         @if ($errors->any())
             <div class="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
-                <p class="font-bold flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Gagal Memproses Pesanan:
-                </p>
-                <ul class="list-disc list-inside text-sm mt-1 ml-2">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
+                <p class="font-bold">Gagal Memproses Pesanan:</p>
+                <ul class="list-disc list-inside text-sm mt-1">
+                    @foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach
                 </ul>
             </div>
         @endif
 
-        {{-- 2. Error Sistem (Database/Model salah) --}}
-        @if (session('error'))
-            <div class="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-sm flex items-center gap-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <div>
-                    <p class="font-bold">Terjadi Kesalahan Sistem:</p>
-                    <p class="text-sm">{{ session('error') }}</p>
-                </div>
-            </div>
-        @endif
         <form action="{{ route('checkout.store') }}" method="POST" x-data="{ deliveryMethod: 'diantar' }">
             @csrf
-            @if ($errors->any())
-                <div class="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded shadow-sm">
-                    <p class="font-bold mb-1">Gagal Memproses Pesanan:</p>
-                    <ul class="list-disc list-inside text-sm">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
-                {{-- KOLOM KIRI --}}
+                {{-- KOLOM KIRI: FORM DATA --}}
                 <div class="lg:col-span-2 space-y-6">
                     
-                    {{-- 1. PILIH METODE PENGIRIMAN (BARU) --}}
+                    {{-- 1. Metode Pengiriman --}}
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                         <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -61,7 +36,6 @@
                         </h2>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {{-- Opsi Diantar --}}
                             <label class="cursor-pointer">
                                 <input type="radio" name="metode_pengiriman" value="diantar" x-model="deliveryMethod" class="peer sr-only">
                                 <div class="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-blue-600 peer-checked:bg-blue-50 hover:bg-gray-50 transition">
@@ -75,7 +49,6 @@
                                 </div>
                             </label>
 
-                            {{-- Opsi Ambil Sendiri --}}
                             <label class="cursor-pointer">
                                 <input type="radio" name="metode_pengiriman" value="ambil_sendiri" x-model="deliveryMethod" class="peer sr-only">
                                 <div class="p-4 border-2 border-gray-200 rounded-lg peer-checked:border-green-600 peer-checked:bg-green-50 hover:bg-gray-50 transition">
@@ -91,32 +64,42 @@
                         </div>
                     </div>
 
-                    {{-- 2. ALAMAT (Kondisional) --}}
+                    {{-- 2. ALAMAT --}}
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                         
-                        {{-- Jika Pilih Diantar --}}
+                        {{-- Form Alamat (Muncul jika Diantar) --}}
                         <div x-show="deliveryMethod === 'diantar'" x-transition>
                             <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                 <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 Alamat Tujuan <span class="text-red-500">*</span>
                             </h2>
                             <div class="mb-4">
+                                {{-- 
+                                    INI BAGIAN PENTINGNYA: 
+                                    Isi textarea dengan {{ Auth::user()->alamat }} 
+                                --}}
                                 <textarea name="alamat_pengiriman" rows="3" 
                                           :required="deliveryMethod === 'diantar'"
                                           class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                          placeholder="Jalan, Nomor Rumah, RT/RW, Patokan..."></textarea>
+                                          placeholder="Jalan, Nomor Rumah, RT/RW, Patokan...">{{ Auth::user()->alamat }}</textarea>
+
+                                @if(!Auth::user()->alamat)
+                                    <p class="text-xs text-orange-500 mt-2 flex items-center gap-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Tips: Isi alamat di menu Profil agar otomatis muncul di sini.
+                                    </p>
+                                @endif
                             </div>
                         </div>
 
-                        {{-- Jika Pilih Ambil Sendiri --}}
+                        {{-- Info Ambil Sendiri --}}
                         <div x-show="deliveryMethod === 'ambil_sendiri'" x-transition class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
                             <strong>📍 Lokasi Pengambilan:</strong><br>
                             Toko Grosir Fadly Fajar<br>
                             Jl. Contoh No. 123, Kota Parepare<br>
-                            <span class="text-xs text-gray-500">(Tunjukkan bukti pesanan di Kasir saat mengambil barang)</span>
                         </div>
 
-                        {{-- Kontak & Catatan (Selalu Muncul) --}}
+                        {{-- Data Diri (Readonly) --}}
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Penerima</label>
@@ -131,7 +114,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan (Opsional)</label>
                             <input type="text" name="catatan" 
                                    class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                   placeholder="Contoh: Packing kardus tebal...">
+                                   placeholder="Contoh: Titip di pos satpam">
                         </div>
                     </div>
 
@@ -142,15 +125,15 @@
                             <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
                                 <input type="radio" name="metode_bayar" value="cash" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
                                 <div class="ml-3">
-                                    <span class="block text-sm font-bold text-gray-900">Bayar Tunai / COD</span>
-                                    <span class="block text-xs text-gray-500" x-text="deliveryMethod === 'diantar' ? 'Bayar saat barang sampai di lokasi.' : 'Bayar di kasir toko saat mengambil barang.'"></span>
+                                    <span class="block text-sm font-bold text-gray-900">Bayar di Toko / COD</span>
+                                    <span class="block text-xs text-gray-500" x-text="deliveryMethod === 'diantar' ? 'Bayar saat barang sampai.' : 'Bayar saat ambil barang.'"></span>
                                 </div>
                             </label>
                             <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:bg-blue-50 transition has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
                                 <input type="radio" name="metode_bayar" value="transfer" class="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500">
                                 <div class="ml-3">
                                     <span class="block text-sm font-bold text-gray-900">Transfer Bank</span>
-                                    <span class="block text-xs text-gray-500">Kirim bukti transfer ke Admin via WA.</span>
+                                    <span class="block text-xs text-gray-500">Kirim bukti transfer setelah checkout.</span>
                                 </div>
                             </label>
                         </div>
@@ -164,8 +147,13 @@
                         <div class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
                             @foreach($keranjang as $item)
                                 <div class="flex justify-between text-sm">
-                                    <div><span class="font-bold">{{ $item->jumlah }}x</span> {{ $item->produk->nama_produk }} <div class="text-xs text-gray-500">{{ $item->satuan }}</div></div>
-                                    <div class="font-medium">Rp {{ number_format($item->harga_saat_ini * $item->jumlah, 0, ',', '.') }}</div>
+                                    <div>
+                                        <span class="font-bold">{{ $item->jumlah }}x</span> {{ $item->produk->nama_produk }}
+                                        <div class="text-xs text-gray-500">{{ $item->satuan }}</div>
+                                    </div>
+                                    <div class="font-medium">
+                                        Rp {{ number_format($item->harga_saat_ini * $item->jumlah, 0, ',', '.') }}
+                                    </div>
                                 </div>
                             @endforeach
                         </div>
@@ -176,10 +164,8 @@
                             </div>
                         </div>
                         <button type="submit" class="w-full mt-6 bg-blue-700 hover:bg-blue-800 text-white font-bold py-3.5 rounded-lg shadow-lg transition transform hover:-translate-y-1 flex justify-center items-center gap-2">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             Buat Pesanan
                         </button>
-                        <p class="text-xs text-gray-400 mt-4 text-center">Dengan membuat pesanan, Anda menyetujui syarat & ketentuan kami.</p>
                     </div>
                 </div>
 

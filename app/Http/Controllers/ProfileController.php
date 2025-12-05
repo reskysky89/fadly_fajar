@@ -16,8 +16,22 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
-        return view('profile.edit', [
-            'user' => $request->user(),
+        // Hitung Statistik User
+        $user = $request->user();
+        
+        $totalTransaksi = \App\Models\Transaksi::where('id_user_pelanggan', $user->id_user)
+                            ->where('status_pesanan', 'selesai')
+                            ->count();
+
+        $totalBelanja = \App\Models\Transaksi::where('id_user_pelanggan', $user->id_user)
+                            ->where('status_pesanan', 'selesai')
+                            ->sum('total_harga');
+
+        // Kita arahkan ke view baru yang khusus Pelanggan
+        return view('pelanggan.profil.index', [
+            'user' => $user,
+            'totalTransaksi' => $totalTransaksi,
+            'totalBelanja' => $totalBelanja
         ]);
     }
 
@@ -27,6 +41,11 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $request->user()->fill($request->validated());
+
+        // Pastikan field alamat ikut tersimpan jika ada di request
+        if ($request->has('alamat')) {
+            $request->user()->alamat = $request->alamat;
+        }
 
         if ($request->user()->isDirty('email')) {
             $request->user()->email_verified_at = null;

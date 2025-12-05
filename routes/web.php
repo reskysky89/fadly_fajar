@@ -14,6 +14,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Pelanggan\KeranjangController;
 use App\Http\Controllers\Pelanggan\CheckoutController;
 use App\Http\Controllers\Pelanggan\RiwayatPesananController;
+use App\Http\Controllers\NotifikasiController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
     Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
     Route::put('/pesanan-online/{id}/batal', [PesananOnlineController::class, 'batalkan'])->name('pesanan.batal');
+    Route::get('/notifikasi/baca/{id}', [NotifikasiController::class, 'baca'])->name('notifikasi.baca');
+    Route::get('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.bacaSemua');
     
 });
 
@@ -133,6 +136,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store'); 
     Route::get('/riwayat-pesanan', [RiwayatPesananController::class, 'index'])->name('pelanggan.riwayat');
+    Route::put('/riwayat-pesanan/{id}/batal', [RiwayatPesananController::class, 'batalkanPesanan'])->name('pelanggan.riwayat.batal');
 
 });
 Route::get('/api/cek-stok/{id}', [App\Http\Controllers\HomeController::class, 'cekStok'])->name('api.cekStok');
