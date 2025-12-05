@@ -42,7 +42,7 @@
                 @if($pesananBaru->count() > 0)
                     <div class="grid gap-6">
                         @foreach($pesananBaru as $pesanan)
-                            <div class="bg-white dark:bg-gray-800 border border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-md transition" x-data="{ openPay: false }">
+                            <div class="bg-white dark:bg-gray-800 border border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-md transition">
                                 <div class="flex flex-col md:flex-row justify-between items-start gap-4">
                                     
                                     {{-- Info Kiri --}}
@@ -64,28 +64,31 @@
                                             {{ $pesanan->keterangan }}
                                         </div>
 
-                                        {{-- List Barang --}}
+                                        {{-- List Barang Ringkas --}}
                                         <ul class="text-sm text-gray-700 dark:text-gray-300 space-y-1 pl-4 list-disc">
                                             @foreach($pesanan->details as $item)
                                                 <li>
                                                     <span class="font-bold">{{ $item->jumlah }} {{ $item->satuan }}</span> - {{ $item->produk->nama_produk }}
-                                                    <span class="text-gray-400 text-xs">(@ Rp {{ number_format($item->harga_satuan, 0, ',', '.') }})</span>
                                                 </li>
                                             @endforeach
                                         </ul>
                                     </div>
 
-                                    {{-- Info Kanan (Total & Aksi) --}}
+                                    {{-- Info Kanan & Tombol --}}
                                     <div class="md:text-right flex flex-col items-start md:items-end gap-2 min-w-[200px]">
                                         <div class="text-sm text-gray-500">Total Tagihan</div>
                                         <div class="text-3xl font-extrabold text-blue-700 mb-2">Rp {{ number_format($pesanan->total_harga, 0, ',', '.') }}</div>
                                         
-                                        <button @click="openPay = true" class="w-full px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow transition flex items-center justify-center gap-2">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            Proses Selesai
-                                        </button>
+                                        {{-- TOMBOL LIHAT & PROSES (Mengarah ke Halaman Edit) --}}
+                                        {{-- PERBAIKAN UTAMA: Pakai route 'pesanan.edit' dengan parameter ID --}}
+                                        <a href="{{ route('pesanan.edit', ['id' => $pesanan->id_transaksi]) }}" 
+                                           class="w-full px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow transition flex items-center justify-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                            Lihat & Proses
+                                        </a>
                                         
-                                        <form action="{{ route('pesanan.batal', $pesanan->id_transaksi) }}" method="POST" class="w-full" onsubmit="return confirm('Yakin batalkan pesanan ini?')">
+                                        {{-- Tombol Batalkan --}}
+                                        <form action="{{ route('pesanan.batal', ['id' => $pesanan->id_transaksi]) }}" method="POST" class="w-full" onsubmit="return confirm('Yakin batalkan pesanan ini?')">
                                             @csrf @method('PUT')
                                             <button type="submit" class="w-full px-6 py-2 bg-gray-200 hover:bg-red-100 text-gray-600 hover:text-red-600 font-bold rounded-lg transition text-sm">
                                                 Batalkan
@@ -93,34 +96,6 @@
                                         </form>
                                     </div>
                                 </div>
-
-                                {{-- MODAL PEMBAYARAN --}}
-                                <div x-show="openPay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" x-cloak>
-                                    <div class="bg-white dark:bg-gray-800 w-full max-w-md p-6 rounded-xl shadow-2xl transform scale-100" @click.away="openPay = false">
-                                        <h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white border-b pb-2">Terima Pembayaran</h3>
-                                        
-                                        <form action="{{ route('pesanan.selesai', $pesanan->id_transaksi) }}" method="POST">
-                                            @csrf @method('PUT')
-                                            
-                                            <div class="mb-4">
-                                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Total Harus Dibayar</label>
-                                                <input type="text" value="Rp {{ number_format($pesanan->total_harga, 0, ',', '.') }}" class="w-full bg-gray-100 border-gray-300 rounded-lg font-bold text-lg text-gray-700" disabled>
-                                            </div>
-
-                                            <div class="mb-6">
-                                                <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Uang Diterima (Tunai/Transfer)</label>
-                                                <input type="number" name="bayar" class="w-full border-blue-500 ring-2 ring-blue-100 rounded-lg font-bold text-xl p-2" placeholder="0" required autofocus>
-                                                <p class="text-xs text-gray-500 mt-1">Masukkan nominal uang yang diterima dari pelanggan/bukti transfer.</p>
-                                            </div>
-
-                                            <div class="flex justify-end gap-2 pt-4 border-t">
-                                                <button type="button" @click="openPay = false" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300">Batal</button>
-                                                <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg">Simpan & Selesai</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-
                             </div>
                         @endforeach
                     </div>

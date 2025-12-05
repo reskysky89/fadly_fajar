@@ -32,9 +32,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
-    Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
-    Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
-    Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
+    Route::get('/pesanan-online/{id}/proses', [PesananOnlineController::class, 'edit'])->name('pesanan.edit');
+    Route::put('/pesanan-online/{id}/selesai-proses', [PesananOnlineController::class, 'update'])->name('pesanan.update');
+    // Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
+    // Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
+    // Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');
     Route::put('/pesanan-online/{id}/batal', [PesananOnlineController::class, 'batalkan'])->name('pesanan.batal');
     Route::get('/notifikasi/baca/{id}', [NotifikasiController::class, 'baca'])->name('notifikasi.baca');
     Route::get('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.bacaSemua');

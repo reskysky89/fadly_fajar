@@ -82,6 +82,84 @@ class PesananOnlineController extends Controller
             return back()->with('error', 'Gagal memproses: ' . $e->getMessage());
         }
     }
+    public function edit($id)
+    {
+        $transaksi = Transaksi::with(['details.produk.satuanDasar', 'details.produk.produkKonversis.satuan'])
+                              ->where('id_transaksi', $id)
+                              ->firstOrFail();
+
+        // Cek status, hanya yang 'diproses' yang boleh diedit di sini
+        if ($transaksi->status_pesanan != 'diproses') {
+            return redirect()->route('pesanan.index')->with('error', 'Pesanan ini sudah selesai atau dibatalkan.');
+        }
+
+        return view('admin.pesanan.edit', compact('transaksi'));
+    }
+
+    /**
+     * 2. Simpan Perubahan & Selesaikan Transaksi
+     */
+    public function update(Request $request, $id)
+    {
+        $transaksi = Transaksi::findOrFail($id);
+
+        $request->validate([
+            'total_harga'  => 'required|numeric',
+            'bayar'        => 'required|numeric|gte:total_harga',
+            'kembalian'    => 'required|numeric',
+            'items'        => 'required|array|min:1', 
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // A. Update Header Transaksi (Finalisasi)
+            $transaksi->update([
+                'total_harga'    => $request->total_harga,
+                'bayar'          => $request->bayar,
+                'kembalian'      => $request->kembalian,
+                'status_pesanan' => 'selesai',       // <--- UBAH JADI SELESAI
+                'id_user_kasir'  => Auth::id(),      // Catat siapa yang memproses
+                'nama_kasir'     => Auth::user()->nama,
+                // 'waktu_transaksi' => now(), // Opsional: Update waktu ke saat ini atau biarkan waktu order asli
+            ]);
+
+            // B. Reset Detail (Hapus Lama -> Masukkan Baru hasil Edit)
+            $transaksi->details()->delete();
+
+            foreach ($request->items as $item) {
+                \App\Models\DetailTransaksi::create([
+                    'id_transaksi' => $transaksi->id_transaksi,
+                    'id_produk'    => $item['id_produk'],
+                    'jumlah'       => $item['qty'],
+                    'satuan'       => $item['satuan'],
+                    // 'id_satuan' => ... (Jika sudah pakai ID)
+                    'harga_satuan' => $item['harga'],
+                    'subtotal'     => $item['subtotal'],
+                ]);
+            }
+
+            DB::commit();
+
+            // C. Kirim Email Notifikasi (Copy logika dari sebelumnya)
+            if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($transaksi->pelanggan->email)->send(new \App\Mail\PesananSelesaiMail($transaksi));
+                } catch (\Exception $e) {}
+            }
+            
+            // D. Kirim Notifikasi Website
+            if ($transaksi->pelanggan) {
+                $transaksi->pelanggan->notify(new \App\Notifications\PesananSelesaiNotification($transaksi));
+            }
+
+            return response()->json(['success' => true, 'message' => 'Pesanan berhasil diproses & diselesaikan!']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 
     // Fungsi Batalkan Pesanan
     public function batalkan($id)

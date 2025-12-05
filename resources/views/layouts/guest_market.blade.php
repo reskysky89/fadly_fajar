@@ -57,32 +57,61 @@
                     </a>
 
                     {{-- Lonceng Notifikasi --}}
-                    <div class="relative mr-2" x-data="{ openNotif: false }">
+                    <div class="relative mr-1 md:mr-2" x-data="{ openNotif: false }">
+                        
                         <button @click="openNotif = !openNotif" class="relative p-2 text-gray-600 hover:text-blue-600 transition">
                             <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             @php $unreadCount = Auth::user()->unreadNotifications->count(); @endphp
                             @if($unreadCount > 0)
-                                <span class="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full">{{ $unreadCount }}</span>
+                                <span class="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full animate-pulse">{{ $unreadCount }}</span>
                             @endif
                         </button>
-                        <div x-show="openNotif" @click.away="openNotif = false" x-transition class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 overflow-hidden">
-                            <div class="px-4 py-2 border-b border-gray-100 font-bold text-gray-700">Notifikasi</div>
-                            <div class="max-h-64 overflow-y-auto">
+
+                        {{-- DROPDOWN NOTIFIKASI (PERBAIKAN POSISI) --}}
+                        <div x-show="openNotif" 
+                             @click.away="openNotif = false" 
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             {{-- CLASS PENTING DI SINI: --}}
+                             class="absolute right-[-50px] md:right-0 mt-2 w-72 md:w-80 max-w-[90vw] bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 overflow-hidden origin-top-right">
+                            
+                            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                                <span class="font-bold text-gray-700 text-sm">Notifikasi</span>
+                                @if(Auth::user()->notifications->count() > 0)
+                                    <a href="{{ route('notifikasi.bacaSemua') }}" class="text-xs text-blue-600 hover:underline">Baca Semua</a>
+                                @endif
+                            </div>
+
+                            <div class="max-h-64 overflow-y-auto custom-scrollbar">
                                 @forelse(Auth::user()->notifications as $notif)
-                                    <a href="{{ route('notifikasi.baca', $notif->id) }}" class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition {{ $notif->read_at ? 'opacity-60' : 'bg-blue-50' }}">
-                                        <p class="text-sm font-semibold text-gray-800">{{ $notif->data['pesan'] }}</p>
-                                        <p class="text-xs text-gray-500 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                    <a href="{{ route('notifikasi.baca', $notif->id) }}" class="block px-4 py-3 hover:bg-blue-50 border-b border-gray-50 transition group">
+                                        <div class="flex items-start gap-3">
+                                            {{-- Indikator Belum Baca --}}
+                                            @if(!$notif->read_at)
+                                                <span class="mt-1.5 w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                                            @endif
+                                            
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-800 group-hover:text-blue-700 transition {{ $notif->read_at ? 'font-normal text-gray-600' : '' }}">
+                                                    {{ $notif->data['pesan'] }}
+                                                </p>
+                                                <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
+                                            </div>
+                                        </div>
                                     </a>
                                 @empty
-                                    <div class="px-4 py-4 text-center text-sm text-gray-500">Belum ada notifikasi baru.</div>
+                                    <div class="px-4 py-8 text-center">
+                                        <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                        <p class="text-sm text-gray-500">Belum ada notifikasi</p>
+                                    </div>
                                 @endforelse
                             </div>
-                            @if(Auth::user()->notifications->count() > 0)
-                                <a href="{{ route('notifikasi.bacaSemua') }}" class="block text-center py-2 text-xs font-bold text-blue-600 hover:bg-gray-50">Tandai Semua Dibaca</a>
-                            @endif
                         </div>
                     </div>
-
                     {{-- User Menu --}}
                     <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" class="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none">
