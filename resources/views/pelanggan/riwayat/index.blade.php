@@ -1,16 +1,7 @@
 @component('layouts.guest_market')
 
-    {{-- 
-        PERBAIKAN DI SINI:
-        x-data harus memuat SEMUA variabel: activeTab (untuk tab) DAN reviewModalOpen (untuk ulasan)
-    --}}
     <div class="max-w-screen-xl mx-auto px-4 py-10 min-h-screen" 
-         x-data="{ 
-             activeTab: 'diproses', 
-             reviewModalOpen: false, 
-             trxId: null, 
-             rating: 5 
-         }">
+         x-data="{ activeTab: 'diproses', reviewModalOpen: false, trxId: null, rating: 5 }">
 
         {{-- TOMBOL KEMBALI --}}
         <div class="mb-6">
@@ -28,10 +19,7 @@
         </h1>
 
         @if(session('success'))
-            <div class="p-4 mb-6 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200 flex items-center gap-2 shadow-sm">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"></path></svg>
-                {{ session('success') }}
-            </div>
+            <div class="p-4 mb-6 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200 shadow-sm">{{ session('success') }}</div>
         @endif
         @if(session('error'))
             <div class="p-4 mb-6 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200 shadow-sm">{{ session('error') }}</div>
@@ -45,14 +33,12 @@
                 <span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
                 Diproses
             </button>
-            
             <button @click="activeTab = 'selesai'" 
                     :class="activeTab === 'selesai' ? 'bg-green-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'"
                     class="px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 whitespace-nowrap">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 Selesai
             </button>
-
             <button @click="activeTab = 'batal'" 
                     :class="activeTab === 'batal' ? 'bg-red-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'"
                     class="px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 whitespace-nowrap">
@@ -68,31 +54,34 @@
                     
                     <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition duration-300">
                         
-                        {{-- HEADER KARTU --}}
+                        {{-- HEADER --}}
                         <div class="bg-gray-50 px-6 py-3 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
                             <div class="flex items-center gap-2">
                                 <span class="font-mono font-bold text-gray-600">#{{ $trx->id_transaksi }}</span>
-                                <span class="text-xs text-gray-400 hidden sm:inline">• {{ \Carbon\Carbon::parse($trx->waktu_transaksi)->setTimezone('Asia/Makassar')->format('d M Y, H:i') }} WITA</span>
+                                <span class="text-xs text-gray-400 hidden sm:inline">• {{ $trx->created_at->format('d M Y, H:i') }} WITA</span>
                             </div>
-                            @if($trx->status_pesanan == 'diproses')
-                                <span class="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">Menunggu Konfirmasi</span>
-                            @elseif($trx->status_pesanan == 'selesai')
-                                <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">Selesai</span>
-                            @elseif($trx->status_pesanan == 'batal')
-                                <span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">Dibatalkan</span>
-                            @endif
+                            <div>
+                                @if($trx->status_pesanan == 'diproses')
+                                    <span class="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded border border-yellow-200">Menunggu Konfirmasi</span>
+                                @elseif($trx->status_pesanan == 'selesai')
+                                    <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200">Selesai</span>
+                                @elseif($trx->status_pesanan == 'batal')
+                                    <span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200">Dibatalkan</span>
+                                @endif
+                            </div>
                         </div>
 
                         <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
                             
-                            {{-- KOLOM 1: DAFTAR BARANG --}}
+                            {{-- KOLOM 1: DAFTAR BARANG (FIX IMAGE) --}}
                             <div class="lg:col-span-2">
                                 <ul class="divide-y divide-gray-50">
                                     @foreach($trx->details as $item)
                                         <li class="py-3 first:pt-0 last:pb-0 flex items-start gap-4">
                                             <div class="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0 border border-gray-200">
                                                 @if($item->produk && $item->produk->gambar)
-                                                    <img src="{{ asset('storage/' . $item->produk->gambar) }}" class="w-full h-full object-cover">
+                                                    {{-- PERBAIKAN IMAGE: asset() langsung ke path public/uploads --}}
+                                                    <img src="{{ asset($item->produk->gambar) }}" class="w-full h-full object-cover">
                                                 @else
                                                     <div class="flex items-center justify-center h-full text-gray-300"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
                                                 @endif
@@ -111,64 +100,55 @@
                                 </div>
                             </div>
 
-                            {{-- KOLOM 2: INFO PENGIRIMAN & AKSI --}}
+                            {{-- KOLOM 2: INFO & AKSI --}}
                             <div class="flex flex-col gap-4 text-sm">
                                 <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                    @if($trx->metode_pengiriman == 'diantar')
-                                        <div class="flex items-start gap-3 mb-2">
-                                            <div class="bg-purple-100 text-purple-600 p-1.5 rounded-md"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-                                            <p class="font-bold text-gray-800">Diantar Kurir</p>
-                                        </div>
-                                        <p class="text-xs text-gray-600 italic">
-                                            @php
-                                                $parts = explode('|', $trx->keterangan);
-                                                echo str_replace('Alamat:', '', $parts[0] ?? '-');
-                                            @endphp
-                                        </p>
-                                    @else
-                                        <div class="flex items-start gap-3 mb-2">
-                                            <div class="bg-orange-100 text-orange-600 p-1.5 rounded-md"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg></div>
-                                            <p class="font-bold text-gray-800">Ambil di Toko</p>
-                                        </div>
-                                        <p class="text-xs text-gray-600 italic">Jl. Contoh No. 123, Parepare</p>
-                                    @endif
+                                    <p class="font-bold text-gray-800 mb-1">{{ $trx->metode_pengiriman == 'diantar' ? 'Diantar Kurir' : 'Ambil di Toko' }}</p>
+                                    <p class="text-xs text-gray-500 italic">{{ $trx->metode_bayar == 'cash' ? 'Tunai/COD' : 'Transfer Bank' }}</p>
                                 </div>
 
-                                <div class="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg">
-                                    <span class="text-gray-500 text-xs font-bold uppercase">Bayar</span>
-                                    @if($trx->metode_bayar == 'cash')
-                                        <span class="text-xs font-bold text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">Tunai / COD</span>
-                                    @else
-                                        <span class="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">Transfer</span>
-                                    @endif
-                                </div>
-
+                                {{-- AKSI JIKA DIPROSES --}}
                                 @if($trx->status_pesanan == 'diproses')
-                                    <form action="{{ route('pelanggan.riwayat.batal', $trx->id_transaksi) }}" method="POST" onsubmit="return confirm('Yakin batalkan?')">
+                                    <form action="{{ route('pelanggan.riwayat.batal', $trx->id_transaksi) }}" method="POST" onsubmit="return confirm('Yakin ingin membatalkan pesanan ini?')">
                                         @csrf @method('PUT')
-                                        <button type="submit" class="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-2.5 rounded-lg transition text-sm shadow-sm flex items-center justify-center gap-2">Batalkan</button>
+                                        <button type="submit" class="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-2.5 rounded-lg transition text-sm shadow-sm flex items-center justify-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            Batalkan Pesanan
+                                        </button>
                                     </form>
+                                    <p class="text-center text-xs text-gray-400 mt-1">Menunggu konfirmasi toko</p>
+
+                                {{-- AKSI JIKA SELESAI --}}
                                 @elseif($trx->status_pesanan == 'selesai')
-                                    {{-- Tombol Struk --}}
+                                    
+                                    {{-- TOMBOL CETAK --}}
                                     <a href="{{ route('kasir.transaksi.cetak', ['id' => $trx->id_transaksi]) }}" target="_blank" 
-                                       class="flex items-center justify-center gap-2 w-full bg-gray-900 hover:bg-black text-white font-bold py-2.5 rounded-lg transition text-sm shadow-md">
+                                       class="w-full flex items-center justify-center gap-2 bg-gray-900 hover:bg-black text-white font-bold py-2.5 rounded-lg transition text-sm shadow-md">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                         Download Nota
                                     </a>
+
+                                    {{-- TOMBOL ULASAN --}}
+                                    @php
+                                        $sudahUlas = \App\Models\Ulasan::where('id_transaksi', $trx->id_transaksi)->exists();
+                                    @endphp
                                     
-                                    {{-- Tombol Ulasan --}}
-                                    @php $sudahUlas = \App\Models\Ulasan::where('id_transaksi', $trx->id_transaksi)->exists(); @endphp
                                     @if(!$sudahUlas)
                                         <button @click="reviewModalOpen = true; trxId = '{{ $trx->id_transaksi }}'" 
-                                                class="flex items-center justify-center gap-2 w-full bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold py-2.5 rounded-lg transition text-sm shadow-md">
+                                                class="w-full flex items-center justify-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold py-2.5 rounded-lg transition text-sm shadow-md">
                                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                                             Beri Ulasan
                                         </button>
                                     @else
-                                        <div class="text-center text-xs text-green-600 font-bold bg-green-50 py-2 rounded border border-green-100">✓ Sudah Diulas</div>
+                                        <div class="text-center text-xs text-green-600 font-bold bg-green-50 py-2 rounded border border-green-100 flex items-center justify-center gap-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                            Sudah Diulas
+                                        </div>
                                     @endif
+
                                 @endif
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -177,14 +157,14 @@
             @endforelse
         </div>
 
-        {{-- MODAL ULASAN --}}
+        {{-- MODAL ULASAN (Sama Seperti Sebelumnya) --}}
         <div x-show="reviewModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4" x-transition x-cloak>
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" @click.away="reviewModalOpen = false">
                 <form action="{{ route('ulasan.store') }}" method="POST">
                     @csrf
                     <div class="p-6 text-center">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Beri Ulasan</h3>
-                        <p class="text-sm text-gray-500 mb-6">Bagaimana pengalaman belanja pesanan <span class="font-mono font-bold text-blue-600" x-text="trxId"></span>?</p>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Beri Ulasan Transaksi</h3>
+                        <p class="text-sm text-gray-500 mb-6">Bagaimana pengalaman belanja Anda untuk pesanan <span class="font-mono font-bold text-blue-600" x-text="trxId"></span>?</p>
                         
                         <input type="hidden" name="id_transaksi" :value="trxId">
 

@@ -22,6 +22,7 @@ class ProfileUpdateRequest extends FormRequest
             'kontak' => ['required', 'string', 'max:20'],
             
             'alamat' => ['nullable', 'string', 'max:500'], // <-- TAMBAHAN
+            'foto_profil' => ['nullable', 'image', 'max:2048'], // Max 2MB
         ];
     }
 }

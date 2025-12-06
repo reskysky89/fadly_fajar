@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth"> {{-- Tambah scroll-smooth --}}
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,114 +17,77 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-{{-- Tambahkan state 'caraBelanjaOpen' --}}
 <body class="font-sans antialiased bg-gray-50 text-gray-900" x-data="{ mobileMenuOpen: false, caraBelanjaOpen: false }">
 
     {{-- NAVBAR --}}
     <nav class="bg-white border-b border-gray-200 fixed w-full z-50 top-0 start-0 shadow-sm">
         <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
             
-            {{-- KIRI: LOGO & MENU DESKTOP --}}
+            {{-- KIRI --}}
             <div class="flex items-center gap-8">
                 <a href="{{ url('/') }}" class="flex items-center space-x-2">
                     <div class="bg-blue-600 text-white p-2 rounded-lg font-bold text-xl">FF</div>
                     <span class="self-center text-2xl font-bold whitespace-nowrap text-blue-700 hidden sm:block">Fadly Fajar</span>
                 </a>
-
-                {{-- MENU DESKTOP (AKSI BARU) --}}
                 <div class="hidden md:flex space-x-6">
                     <a href="{{ url('/') }}" class="text-sm font-bold text-gray-900 hover:text-blue-600 transition">Beranda</a>
-                    
-                    {{-- 1. AKSI KATEGORI: Scroll ke ID #katalog --}}
                     <a href="{{ url('/#katalog') }}" class="text-sm font-medium text-gray-500 hover:text-blue-600 transition">Kategori</a>
-                    
-                    {{-- 2. AKSI CARA BELANJA: Buka Modal --}}
-                    <button @click="caraBelanjaOpen = true" class="text-sm font-medium text-gray-500 hover:text-blue-600 transition focus:outline-none">
-                        Cara Belanja
-                    </button>
+                    <button @click="caraBelanjaOpen = true" class="text-sm font-medium text-gray-500 hover:text-blue-600 transition focus:outline-none">Cara Belanja</button>
                 </div>
             </div>
 
-            {{-- KANAN: KERANJANG, NOTIF, USER --}}
+            {{-- KANAN --}}
             <div class="flex items-center space-x-3 md:order-2 ml-auto md:ml-0">
                 @auth
-                    {{-- Keranjang --}}
-                    <a href="{{ route('keranjang.index') }}" class="relative p-2 text-gray-600 hover:text-blue-600 transition mr-2"
+                    <a href="{{ route('keranjang.index') }}" class="relative p-2 text-gray-600 hover:text-blue-600 transition mr-1 md:mr-2"
                        x-data="{ count: {{ \App\Models\Keranjang::where('id_user', Auth::id())->count() }} }"
                        @cart-updated.window="count = $event.detail.count">
                         <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                         <span x-show="count > 0" x-text="count" class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full animate-bounce"></span>
                     </a>
 
-                    {{-- Lonceng Notifikasi --}}
                     <div class="relative mr-1 md:mr-2" x-data="{ openNotif: false }">
-                        
                         <button @click="openNotif = !openNotif" class="relative p-2 text-gray-600 hover:text-blue-600 transition">
                             <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             @php $unreadCount = Auth::user()->unreadNotifications->count(); @endphp
-                            @if($unreadCount > 0)
-                                <span class="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full animate-pulse">{{ $unreadCount }}</span>
-                            @endif
+                            @if($unreadCount > 0) <span class="absolute top-1 right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full animate-pulse">{{ $unreadCount }}</span> @endif
                         </button>
-
-                        {{-- DROPDOWN NOTIFIKASI (PERBAIKAN POSISI) --}}
-                        <div x-show="openNotif" 
-                             @click.away="openNotif = false" 
-                             x-transition:enter="transition ease-out duration-200"
-                             x-transition:enter-start="opacity-0 scale-95"
-                             x-transition:enter-end="opacity-100 scale-100"
-                             x-transition:leave="transition ease-in duration-75"
-                             x-transition:leave-start="opacity-100 scale-100"
-                             x-transition:leave-end="opacity-0 scale-95"
-                             {{-- CLASS PENTING DI SINI: --}}
-                             class="absolute right-[-50px] md:right-0 mt-2 w-72 md:w-80 max-w-[90vw] bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 overflow-hidden origin-top-right">
-                            
-                            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                                <span class="font-bold text-gray-700 text-sm">Notifikasi</span>
-                                @if(Auth::user()->notifications->count() > 0)
-                                    <a href="{{ route('notifikasi.bacaSemua') }}" class="text-xs text-blue-600 hover:underline">Baca Semua</a>
-                                @endif
-                            </div>
-
+                        <div x-show="openNotif" @click.away="openNotif = false" x-transition class="absolute right-[-50px] md:right-0 mt-2 w-72 md:w-80 max-w-[90vw] bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100 overflow-hidden origin-top-right" style="display: none;">
+                            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center"><span class="font-bold text-gray-700 text-sm">Notifikasi</span> @if(Auth::user()->notifications->count() > 0) <a href="{{ route('notifikasi.bacaSemua') }}" class="text-xs text-blue-600 hover:underline">Baca Semua</a> @endif</div>
                             <div class="max-h-64 overflow-y-auto custom-scrollbar">
                                 @forelse(Auth::user()->notifications as $notif)
                                     <a href="{{ route('notifikasi.baca', $notif->id) }}" class="block px-4 py-3 hover:bg-blue-50 border-b border-gray-50 transition group">
                                         <div class="flex items-start gap-3">
-                                            {{-- Indikator Belum Baca --}}
-                                            @if(!$notif->read_at)
-                                                <span class="mt-1.5 w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span>
-                                            @endif
-                                            
-                                            <div>
-                                                <p class="text-sm font-semibold text-gray-800 group-hover:text-blue-700 transition {{ $notif->read_at ? 'font-normal text-gray-600' : '' }}">
-                                                    {{ $notif->data['pesan'] }}
-                                                </p>
-                                                <p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p>
-                                            </div>
+                                            @if(!$notif->read_at) <span class="mt-1.5 w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></span> @endif
+                                            <div><p class="text-sm font-semibold text-gray-800 group-hover:text-blue-700 transition {{ $notif->read_at ? 'font-normal text-gray-600' : '' }}">{{ $notif->data['pesan'] }}</p><p class="text-xs text-gray-400 mt-1">{{ $notif->created_at->diffForHumans() }}</p></div>
                                         </div>
                                     </a>
-                                @empty
-                                    <div class="px-4 py-8 text-center">
-                                        <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                                        <p class="text-sm text-gray-500">Belum ada notifikasi</p>
-                                    </div>
-                                @endforelse
+                                @empty <div class="px-4 py-8 text-center"><p class="text-sm text-gray-500">Belum ada notifikasi</p></div> @endforelse
                             </div>
                         </div>
                     </div>
-                    {{-- User Menu --}}
+
+                    {{-- USER DROPDOWN (UPDATE FOTO PROFIL) --}}
                     <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" class="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold uppercase border border-blue-200">
-                                {{ substr(Auth::user()->nama, 0, 1) }}
+                            
+                            {{-- FOTO PROFIL --}}
+                            <div class="w-8 h-8 rounded-full overflow-hidden border border-blue-200 bg-gray-100 flex-shrink-0">
+                                @if(Auth::user()->foto_profil)
+                                    <img src="{{ asset(Auth::user()->foto_profil) }}" alt="Avatar" class="w-full h-full object-cover">
+                                @else
+                                    <div class="w-full h-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold uppercase text-xs">
+                                        {{ substr(Auth::user()->nama, 0, 1) }}
+                                    </div>
+                                @endif
                             </div>
-                            <span class="hidden md:block">{{ Auth::user()->nama }}</span>
+
+                            <span class="hidden md:block truncate max-w-[100px]">{{ Auth::user()->nama }}</span>
                             <svg class="w-4 h-4 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                         </button>
-                        <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 border border-gray-100">
-                            @if(Auth::user()->role_user == 'admin')
-                                <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-bold text-blue-600">Dashboard Admin</a>
-                            @endif
+                        
+                        <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50 border border-gray-100" style="display: none;">
+                            @if(Auth::user()->role_user == 'admin') <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-bold text-blue-600">Dashboard Admin</a> @endif
                             <a href="{{ route('profile.edit') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil Saya</a>
                             <a href="{{ route('pelanggan.riwayat') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Riwayat Pesanan</a>
                             <div class="border-t border-gray-100 my-1"></div>
@@ -135,14 +98,12 @@
                     <a href="{{ route('login') }}" class="text-gray-700 hover:text-blue-600 font-semibold text-sm px-3 py-2">Masuk</a>
                     <a href="{{ route('register') }}" class="text-white bg-blue-600 hover:bg-blue-700 font-bold rounded-full text-sm px-4 py-2 shadow-md">Daftar</a>
                 @endauth
-
-                {{-- Hamburger --}}
                 <button @click="mobileMenuOpen = !mobileMenuOpen" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:ring-2 focus:ring-gray-200 ml-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
             </div>
 
-            {{-- SEARCH BAR TENGAH (Desktop) --}}
+            {{-- SEARCH TENGAH --}}
             <div class="items-center justify-between hidden w-full md:flex md:w-auto md:order-1 flex-grow md:mx-10">
                 <form action="{{ url('/') }}" method="GET" class="relative w-full max-w-xl mx-auto">
                     <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></div>
@@ -151,89 +112,39 @@
             </div>
         </div>
 
-        {{-- MOBILE MENU --}}
-        <div x-show="mobileMenuOpen" class="md:hidden bg-white border-t p-4 shadow-lg" x-transition x-cloak>
+        <div x-show="mobileMenuOpen" class="md:hidden bg-white border-t p-4 shadow-lg" x-transition x-cloak style="display: none;">
             <form action="{{ url('/') }}" method="GET" class="relative mb-4">
                 <input type="text" name="search" class="block w-full p-2 text-sm border border-gray-300 rounded-lg" placeholder="Cari produk...">
             </form>
             <ul class="flex flex-col space-y-2">
                 <li><a href="{{ url('/') }}" class="block py-2 px-3 text-blue-700 font-bold bg-blue-50 rounded">Beranda</a></li>
-                {{-- Mobile Links --}}
                 <li><a href="{{ url('/#katalog') }}" class="block py-2 px-3 text-gray-700 hover:bg-gray-100 rounded">Kategori</a></li>
                 <li><button @click="caraBelanjaOpen = true; mobileMenuOpen = false" class="block w-full text-left py-2 px-3 text-gray-700 hover:bg-gray-100 rounded">Cara Belanja</button></li>
             </ul>
         </div>
     </nav>
 
-    {{-- MODAL CARA BELANJA (POP-UP GACOR) --}}
-    <div x-show="caraBelanjaOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" x-transition x-cloak>
+    {{-- MODAL CARA BELANJA --}}
+    <div x-show="caraBelanjaOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm" x-transition x-cloak style="display: none;"> 
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-4 overflow-hidden transform transition-all" @click.away="caraBelanjaOpen = false">
-            
-            {{-- Header Modal --}}
             <div class="bg-blue-600 p-6 text-white text-center relative">
                 <h2 class="text-2xl font-extrabold">Panduan Cara Belanja</h2>
-                <p class="text-blue-100 text-sm mt-1">Belanja Grosir Mudah & Cepat di Toko Fadly Fajar</p>
-                <button @click="caraBelanjaOpen = false" class="absolute top-4 right-4 text-white hover:text-gray-200 focus:outline-none">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+                <button @click="caraBelanjaOpen = false" class="absolute top-4 right-4 text-white hover:text-gray-200 focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-
-            {{-- Body Modal (Grid Steps) --}}
             <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {{-- Step 1 --}}
-                <div class="flex gap-4">
-                    <div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">1</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800 text-lg">Cari & Pilih Produk</h3>
-                        <p class="text-sm text-gray-500 mt-1">Gunakan fitur pencarian atau kategori. Pilih satuan (Pcs/Dus) yang diinginkan.</p>
-                    </div>
-                </div>
-
-                {{-- Step 2 --}}
-                <div class="flex gap-4">
-                    <div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">2</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800 text-lg">Masuk Keranjang</h3>
-                        <p class="text-sm text-gray-500 mt-1">Klik tombol "Beli" untuk memasukkan barang. Anda bisa belanja banyak barang sekaligus.</p>
-                    </div>
-                </div>
-
-                {{-- Step 3 --}}
-                <div class="flex gap-4">
-                    <div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">3</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800 text-lg">Checkout & Bayar</h3>
-                        <p class="text-sm text-gray-500 mt-1">Isi alamat pengiriman, pilih metode bayar (Transfer/COD), lalu buat pesanan.</p>
-                    </div>
-                </div>
-
-                {{-- Step 4 --}}
-                <div class="flex gap-4">
-                    <div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">4</div>
-                    <div>
-                        <h3 class="font-bold text-gray-800 text-lg">Tunggu Konfirmasi</h3>
-                        <p class="text-sm text-gray-500 mt-1">Admin akan memproses pesanan. Anda akan dapat notifikasi email saat barang siap/dikirim.</p>
-                    </div>
-                </div>
-
+                <div class="flex gap-4"><div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">1</div><div><h3 class="font-bold text-gray-800 text-lg">Cari & Pilih</h3><p class="text-sm text-gray-500 mt-1">Gunakan pencarian atau kategori.</p></div></div>
+                <div class="flex gap-4"><div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">2</div><div><h3 class="font-bold text-gray-800 text-lg">Masuk Keranjang</h3><p class="text-sm text-gray-500 mt-1">Klik tombol Beli.</p></div></div>
+                <div class="flex gap-4"><div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">3</div><div><h3 class="font-bold text-gray-800 text-lg">Checkout</h3><p class="text-sm text-gray-500 mt-1">Isi alamat & pilih metode bayar.</p></div></div>
+                <div class="flex gap-4"><div class="w-12 h-12 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl">4</div><div><h3 class="font-bold text-gray-800 text-lg">Selesai</h3><p class="text-sm text-gray-500 mt-1">Tunggu konfirmasi Admin.</p></div></div>
             </div>
-
-            {{-- Footer Modal --}}
-            <div class="p-4 bg-gray-50 border-t text-center">
-                <button @click="caraBelanjaOpen = false" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow transition">
-                    Mengerti, Ayo Belanja!
-                </button>
-            </div>
+            <div class="p-4 bg-gray-50 border-t text-center"><button @click="caraBelanjaOpen = false" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow transition">Mengerti</button></div>
         </div>
     </div>
 
-    {{-- KONTEN UTAMA --}}
     <main class="pt-24 pb-10 min-h-screen px-4 md:px-8">
         {{ $slot }}
     </main>
 
-    {{-- FOOTER --}}
     <footer class="bg-white border-t mt-10 py-8">
         <div class="max-w-screen-xl mx-auto px-4 text-center text-gray-500 text-sm">
             &copy; {{ date('Y') }} <strong>Toko Fadly Fajar</strong>. Melayani dengan Hati.

@@ -12,16 +12,15 @@ class RiwayatPesananController extends Controller
 {
     public function index()
     {
-        // Ambil SEMUA transaksi user, urutkan terbaru
+        // Ambil transaksi milik user, urutkan dari yang BARU DIBUAT
         $riwayat = Transaksi::with(['details.produk'])
                             ->where('id_user_pelanggan', Auth::id())
                             ->where('jenis_transaksi', 'online')
-                            ->latest('waktu_transaksi') // Paling atas = Paling baru
+                            
+                            // PERBAIKAN: Urutkan by Created At (Waktu Masuk)
+                            ->orderBy('created_at', 'desc') 
                             ->get();
 
-        // Kita grouping di View (Blade) saja menggunakan Collection filtering
-        // agar tidak perlu query database berkali-kali.
-        
         return view('pelanggan.riwayat.index', compact('riwayat'));
     }
 

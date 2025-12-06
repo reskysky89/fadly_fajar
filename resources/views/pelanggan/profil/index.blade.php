@@ -2,7 +2,7 @@
 
     <div class="max-w-screen-xl mx-auto px-4 py-10">
         
-        {{-- TOMBOL KEMBALI (Sama seperti di Riwayat) --}}
+        {{-- TOMBOL KEMBALI --}}
         <div class="mb-6">
             <a href="{{ route('home') }}" class="inline-flex items-center text-gray-500 hover:text-blue-600 font-bold transition duration-200 group text-sm">
                 <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center mr-2 shadow-sm group-hover:bg-blue-50 group-hover:border-blue-200 group-hover:shadow transition-all">
@@ -12,7 +12,6 @@
             </a>
         </div>
 
-        {{-- Header --}}
         <h1 class="text-3xl font-extrabold text-gray-900 mb-8 border-b border-gray-200 pb-4">
             Profil Saya
         </h1>
@@ -24,13 +23,21 @@
                 
                 {{-- 1. Kartu Identitas --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center relative overflow-hidden">
-                    {{-- Hiasan Background --}}
                     <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-blue-600 to-purple-600"></div>
                     
-                    {{-- Avatar --}}
-                    <div class="relative mx-auto w-24 h-24 bg-white rounded-full p-1 shadow-lg -mt-2">
-                        <div class="w-full h-full bg-gray-100 rounded-full flex items-center justify-center text-3xl font-bold text-blue-600 uppercase">
-                            {{ substr($user->nama, 0, 1) }}
+                    {{-- FOTO PROFIL --}}
+                    <div class="relative mx-auto w-28 h-28 bg-white rounded-full p-1 shadow-lg -mt-4 group">
+                        <div class="w-full h-full rounded-full overflow-hidden bg-gray-100 flex items-center justify-center text-4xl font-bold text-blue-600 uppercase border-4 border-white relative">
+                            @if($user->foto_profil)
+                                <img src="{{ asset($user->foto_profil) }}" alt="Profil" class="w-full h-full object-cover">
+                            @else
+                                {{ substr($user->nama, 0, 1) }}
+                            @endif
+                            
+                            {{-- Overlay Edit (Hanya visual, uploadnya di form kanan) --}}
+                            <div class="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                                <span class="text-white text-xs font-bold">Edit di Kanan</span>
+                            </div>
                         </div>
                     </div>
 
@@ -45,7 +52,7 @@
                     </div>
                 </div>
 
-                {{-- 2. Statistik Belanja (Loyalty) --}}
+                {{-- 2. Statistik Belanja --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
                     <h3 class="text-sm font-bold text-gray-400 uppercase mb-4">Aktivitas Belanja</h3>
                     
@@ -72,7 +79,6 @@
                     </div>
                 </div>
                 
-                {{-- Tombol Logout Mobile (Optional) --}}
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="w-full bg-red-50 text-red-600 hover:bg-red-100 font-bold py-3 rounded-xl transition shadow-sm flex justify-center items-center gap-2">
@@ -86,18 +92,36 @@
             {{-- KOLOM KANAN: FORM EDIT --}}
             <div class="lg:col-span-2 space-y-8">
                 
-                {{-- 1. Form Ganti Profil --}}
+                {{-- 1. Form Ubah Data Diri --}}
                 <div class="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
                     <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         Ubah Data Diri
                     </h3>
 
-                    <form method="post" action="{{ route('profile.update') }}">
+                    {{-- TAMBAHKAN ENCTYPE UNTUK UPLOAD --}}
+                    <form method="post" action="{{ route('profile.update') }}" enctype="multipart/form-data">
                         @csrf
                         @method('patch')
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            
+                            {{-- Input Foto Profil --}}
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-bold text-gray-700 mb-2">Foto Profil (Opsional)</label>
+                                <div class="flex items-center gap-4">
+                                    <div class="w-16 h-16 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
+                                         @if($user->foto_profil)
+                                            <img src="{{ asset($user->foto_profil) }}" class="w-full h-full object-cover">
+                                        @else
+                                            <div class="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl">{{ substr($user->nama, 0, 1) }}</div>
+                                        @endif
+                                    </div>
+                                    <input type="file" name="foto_profil" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition">
+                                </div>
+                                @error('foto_profil') <span class="text-xs text-red-500">{{ $message }}</span> @enderror
+                            </div>
+
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Nama Lengkap</label>
                                 <input type="text" name="nama" value="{{ old('nama', $user->nama) }}" class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
@@ -119,7 +143,6 @@
                                 <input type="text" name="kontak" value="{{ old('kontak', $user->kontak) }}" class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
                             </div>
 
-                            {{-- Input Alamat (Full Width) --}}
                             <div class="md:col-span-2">
                                 <label class="block text-sm font-bold text-gray-700 mb-2">Alamat Lengkap (Untuk Pengiriman)</label>
                                 <textarea name="alamat" rows="3" class="w-full border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Nama Jalan, Nomor Rumah, RT/RW, Kelurahan, Kecamatan...">{{ old('alamat', $user->alamat) }}</textarea>
