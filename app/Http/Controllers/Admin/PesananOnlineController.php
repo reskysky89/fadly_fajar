@@ -7,6 +7,7 @@ use App\Mail\PesananSelesaiMail;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Transaksi;
+use App\Models\DetailTransaksi;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -14,74 +15,74 @@ class PesananOnlineController extends Controller
 {
     public function index()
     {
-        // 1. Ambil Pesanan Baru (Status: diproses)
+        // 1. PESANAN BARU (DIPROSES) - Tetap Card
         $pesananBaru = Transaksi::with(['pelanggan', 'details.produk'])
                                 ->where('jenis_transaksi', 'online')
                                 ->where('status_pesanan', 'diproses')
-                                ->latest('waktu_transaksi')
+                                ->orderBy('id_transaksi', 'desc')
                                 ->get();
 
-        // 2. Ambil Riwayat Selesai (Status: selesai/batal)
+        // 2. RIWAYAT SELESAI (SELESAI / BATAL)
+        // Ubah paginate() jadi get() agar jadi satu list panjang
         $riwayatSelesai = Transaksi::with(['pelanggan', 'kasir'])
                                    ->where('jenis_transaksi', 'online')
                                    ->whereIn('status_pesanan', ['selesai', 'batal'])
-                                   ->latest('waktu_transaksi')
-                                   ->paginate(10); // Pagination biar ringan
+                                   ->orderBy('id_transaksi', 'desc') 
+                                   ->get(); // <--- GANTI JADI GET()
 
         return view('admin.pesanan.index', compact('pesananBaru', 'riwayatSelesai'));
     }
-
     // Fungsi untuk Menyelesaikan Pesanan (Terima Bayaran)
-    public function selesaikan(Request $request, $id)
-    {
-        $request->validate([
-            'bayar' => 'required|numeric',
-        ]);
+    // public function selesaikan(Request $request, $id)
+    // {
+    //     $request->validate([
+    //         'bayar' => 'required|numeric',
+    //     ]);
 
-        $transaksi = Transaksi::where('id_transaksi', $id)->firstOrFail();
+    //     $transaksi = Transaksi::where('id_transaksi', $id)->firstOrFail();
 
-        if ($request->bayar < $transaksi->total_harga) {
-            return back()->with('error', 'Uang pembayaran kurang!');
-        }
+    //     if ($request->bayar < $transaksi->total_harga) {
+    //         return back()->with('error', 'Uang pembayaran kurang!');
+    //     }
 
-        try {
-            DB::beginTransaction();
+    //     try {
+    //         DB::beginTransaction();
 
-            $transaksi->update([
-                'status_pesanan' => 'selesai',
-                'id_user_kasir'  => Auth::id(), 
-                'nama_kasir'     => Auth::user()->nama,
-                'bayar'          => $request->bayar,
-                'kembalian'      => $request->bayar - $transaksi->total_harga,
+    //         $transaksi->update([
+    //             'status_pesanan' => 'selesai',
+    //             'id_user_kasir'  => Auth::id(), 
+    //             'nama_kasir'     => Auth::user()->nama,
+    //             'bayar'          => $request->bayar,
+    //             'kembalian'      => $request->bayar - $transaksi->total_harga,
                 
-                // --- HAPUS BARIS DI BAWAH INI ---
-                // 'waktu_transaksi'=> now(), 
-                // --------------------------------
-                // Biarkan waktu transaksi tetap sesuai saat pelanggan checkout.
-            ]);
+    //             // --- HAPUS BARIS DI BAWAH INI ---
+    //             // 'waktu_transaksi'=> now(), 
+    //             // --------------------------------
+    //             // Biarkan waktu transaksi tetap sesuai saat pelanggan checkout.
+    //         ]);
 
-            DB::commit();
-            if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
-                try {
-                    Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
-                } catch (\Exception $e) {
-                    // Email gagal? Biarkan saja, jangan gagalkan transaksi.
-                    // Cukup log error-nya jika perlu.
-                }
-            }
+    //         DB::commit();
+    //         if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
+    //             try {
+    //                 Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
+    //             } catch (\Exception $e) {
+    //                 // Email gagal? Biarkan saja, jangan gagalkan transaksi.
+    //                 // Cukup log error-nya jika perlu.
+    //             }
+    //         }
 
-            if ($transaksi->pelanggan) {
-                $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
-            }
-            // -----------------------------------------------
+    //         if ($transaksi->pelanggan) {
+    //             $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
+    //         }
+    //         // -----------------------------------------------
 
-            return back()->with('success', 'Pesanan selesai! Notifikasi email & website terkirim.');
+    //         return back()->with('success', 'Pesanan selesai! Notifikasi email & website terkirim.');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal memproses: ' . $e->getMessage());
-        }
-    }
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return back()->with('error', 'Gagal memproses: ' . $e->getMessage());
+    //     }
+    // }
     public function edit($id)
     {
         $transaksi = Transaksi::with(['details.produk.satuanDasar', 'details.produk.produkKonversis.satuan'])
@@ -113,27 +114,31 @@ class PesananOnlineController extends Controller
         try {
             DB::beginTransaction();
 
-            // A. Update Header Transaksi (Finalisasi)
+            // UPDATE HEADER
             $transaksi->update([
                 'total_harga'    => $request->total_harga,
                 'bayar'          => $request->bayar,
                 'kembalian'      => $request->kembalian,
-                'status_pesanan' => 'selesai',       // <--- UBAH JADI SELESAI
-                'id_user_kasir'  => Auth::id(),      // Catat siapa yang memproses
+                'status_pesanan' => 'selesai',
+                'id_user_kasir'  => Auth::id(),
                 'nama_kasir'     => Auth::user()->nama,
-                // 'waktu_transaksi' => now(), // Opsional: Update waktu ke saat ini atau biarkan waktu order asli
+                
+                // --- PERBAIKAN: UPDATE WAKTU KE SEKARANG (SAAT STRUK KELUAR) ---
+                // Ini agar transaksi tercatat di laporan hari ini, bukan hari pemesanan
+                'waktu_transaksi'   => now(), 
+                'tanggal_transaksi' => date('Y-m-d'), // Update tanggalnya juga
+                // ---------------------------------------------------------------
             ]);
 
-            // B. Reset Detail (Hapus Lama -> Masukkan Baru hasil Edit)
+            // Reset Detail
             $transaksi->details()->delete();
 
             foreach ($request->items as $item) {
-                \App\Models\DetailTransaksi::create([
+                DetailTransaksi::create([
                     'id_transaksi' => $transaksi->id_transaksi,
                     'id_produk'    => $item['id_produk'],
                     'jumlah'       => $item['qty'],
                     'satuan'       => $item['satuan'],
-                    // 'id_satuan' => ... (Jika sudah pakai ID)
                     'harga_satuan' => $item['harga'],
                     'subtotal'     => $item['subtotal'],
                 ]);
@@ -141,19 +146,17 @@ class PesananOnlineController extends Controller
 
             DB::commit();
 
-            // C. Kirim Email Notifikasi (Copy logika dari sebelumnya)
-            if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
-                try {
-                    \Illuminate\Support\Facades\Mail::to($transaksi->pelanggan->email)->send(new \App\Mail\PesananSelesaiMail($transaksi));
-                } catch (\Exception $e) {}
-            }
-            
-            // D. Kirim Notifikasi Website
+            // Notifikasi
             if ($transaksi->pelanggan) {
+                if ($transaksi->pelanggan->email) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($transaksi->pelanggan->email)->send(new \App\Mail\PesananSelesaiMail($transaksi));
+                    } catch (\Exception $e) {}
+                }
                 $transaksi->pelanggan->notify(new \App\Notifications\PesananSelesaiNotification($transaksi));
             }
 
-            return response()->json(['success' => true, 'message' => 'Pesanan berhasil diproses & diselesaikan!']);
+            return response()->json(['success' => true, 'message' => 'Pesanan selesai! Tanggal transaksi diperbarui.']);
 
         } catch (\Exception $e) {
             DB::rollBack();

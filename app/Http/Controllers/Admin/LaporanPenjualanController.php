@@ -60,8 +60,7 @@ class LaporanPenjualanController extends Controller
         $totalTransaksi = $query->clone()->count();
 
         // 4. Ambil Data untuk Tabel (Paginate)
-        $laporan = $query->latest('waktu_transaksi')->paginate(10);
-        $laporan->appends($request->all());
+        $laporan = $query->orderBy('created_at', 'desc')->get();
 
         // 5. Ambil Daftar Kasir (Untuk Dropdown Filter)
         $listKasir = User::where('role_user', 'kasir')->get();
@@ -105,8 +104,12 @@ class LaporanPenjualanController extends Controller
                 'total_harga' => $request->total_harga,
                 'bayar'       => $request->bayar,
                 'kembalian'   => $request->kembalian,
+                
+                // --- JURUS KUNCI MATI: PAKSA PAKAI WAKTU LAMA ---
+                'waktu_transaksi'   => $transaksi->waktu_transaksi,
+                'tanggal_transaksi' => $transaksi->tanggal_transaksi,
+                // ------------------------------------------------
             ]);
-
             // Reset Detail
             $transaksi->details()->delete();
 

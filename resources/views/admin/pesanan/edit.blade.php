@@ -414,12 +414,14 @@
                         const result = await response.json();
                         if (result.success) { 
                             alert('Pesanan Selesai! Struk akan dicetak...'); 
+                            
+                            // 1. Buka Struk di Tab Baru
                             let urlStruk = "{{ route('kasir.transaksi.cetak', ['id' => $transaksi->id_transaksi]) }}";
                             window.open(urlStruk, '_blank');
-                            window.location.href = "{{ route('pesanan.index') }}"; 
-                        } else { 
-                            alert('Gagal: ' + result.message); 
-                            this.isProcessing = false; 
+                            
+                            // 2. Redirect ke Halaman Index (TAB RIWAYAT)
+                            // Kita tambahkan parameter ?tab=riwayat
+                            window.location.href = "{{ route('pesanan.index', ['tab' => 'riwayat']) }}"; 
                         }
                     } catch (error) { console.error(error); alert('Terjadi kesalahan sistem.'); this.isProcessing = false; }
                 },
