@@ -75,13 +75,23 @@
 
             {{-- 7. PESANAN ONLINE --}}
             <a href="{{ route('pesanan.index') }}" 
-               class="{{ $baseClass }} {{ request()->routeIs('pesanan.*') ? $activeClass : $inactiveClass }}">
+               class="{{ $baseClass }} {{ request()->routeIs('pesanan.*') ? $activeClass : $inactiveClass }}"
+               x-data="{ count: {{ \App\Models\Transaksi::where('jenis_transaksi', 'online')->where('status_pesanan', 'diproses')->count() }} }"
+               x-init="setInterval(async () => { 
+                   try { 
+                       const res = await fetch('{{ route('api.cekPesananBaru') }}'); 
+                       const data = await res.json(); 
+                       count = data.count; 
+                   } catch(e) {} 
+               }, 5000)"> 
+                
                 <svg class="{{ $iconClass }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-                Pesanan Online
-                @php $countPending = \App\Models\Transaksi::where('jenis_transaksi', 'online')->where('status_pesanan', 'diproses')->count(); @endphp
-                @if($countPending > 0)
-                    <span class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">{{ $countPending }}</span>
-                @endif
+                <span class="flex-1">Pesanan Online</span>
+                
+                <span x-show="count > 0" 
+                      x-text="count" 
+                      class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                </span>
             </a>
 
             <div class="px-6 py-2 mt-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Lainnya</div>
@@ -105,13 +115,23 @@
             </a>
 
             <a href="{{ route('pesanan.index') }}" 
-               class="{{ $baseClass }} {{ request()->routeIs('pesanan.*') ? $activeClass : $inactiveClass }}">
+               class="{{ $baseClass }} {{ request()->routeIs('pesanan.*') ? $activeClass : $inactiveClass }}"
+               x-data="{ count: {{ \App\Models\Transaksi::where('jenis_transaksi', 'online')->where('status_pesanan', 'diproses')->count() }} }"
+               x-init="setInterval(async () => { 
+                   try { 
+                       const res = await fetch('{{ route('api.cekPesananBaru') }}'); 
+                       const data = await res.json(); 
+                       count = data.count; 
+                   } catch(e) {} 
+               }, 5000)">
+               
                <svg class="{{ $iconClass }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
-               Pesanan Online
-               @php $countPending = \App\Models\Transaksi::where('jenis_transaksi', 'online')->where('status_pesanan', 'diproses')->count(); @endphp
-                @if($countPending > 0)
-                    <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">{{ $countPending }}</span>
-                @endif
+               <span class="flex-1">Pesanan Online</span>
+               
+               <span x-show="count > 0" 
+                     x-text="count" 
+                     class="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+               </span>
             </a>
 
             <a href="{{ route('kasir.riwayat.index') }}" 

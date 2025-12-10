@@ -364,7 +364,7 @@
                     // Validasi Stok
                     const opsi = baris.opsi_satuan.find(o => o.id == baris.id_satuan);
                     if (opsi) {
-                        let stokStr = opsi.stok ? opsi.stok.toString() : '0';
+                        let stokStr = opsi.stok.toString(); 
                         let stokTersedia = parseFloat(stokStr.replace(/\./g, '').replace(',', '.'));
 
                         if (qtyInput > stokTersedia) {

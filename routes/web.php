@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/pesanan-online/{id}/batal', [PesananOnlineController::class, 'batalkan'])->name('pesanan.batal');
     Route::get('/notifikasi/baca/{id}', [NotifikasiController::class, 'baca'])->name('notifikasi.baca');
     Route::get('/notifikasi/baca-semua', [NotifikasiController::class, 'bacaSemua'])->name('notifikasi.bacaSemua');
+    Route::get('/api/cek-pesanan-baru', [PesananOnlineController::class, 'cekPesananBaru'])->name('api.cekPesananBaru');
     
 });
 

@@ -135,4 +135,13 @@ class PesananOnlineController extends Controller
 
         return view('admin.pesanan.picking_list', compact('transaksi'));
     }
+    public function cekPesananBaru()
+    {
+        // Hitung pesanan online yang masih 'diproses'
+        $count = Transaksi::where('jenis_transaksi', 'online')
+                          ->where('status_pesanan', 'diproses')
+                          ->count();
+
+        return response()->json(['count' => $count]);
+    }
 }
