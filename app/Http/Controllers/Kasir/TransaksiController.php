@@ -10,22 +10,134 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Notifications\PesananSelesaiNotification;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PesananSelesaiMail;
 
 class TransaksiController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Generate ID Transaksi Otomatis (Format: TRX-Tanggal-Random)
-        // Contoh: TRX-251125-001
-        $today = date('ymd');
-        $random = rand(100, 999);
-        $nextId = "TRX-{$today}-{$random}";
         $pelanggans = User::where('role_user', 'pelanggan')->orderBy('nama')->get();
 
-        return view('kasir.transaksi.create', compact('nextId','pelanggans'));
+        // 1. CEK APAKAH ADA TITIPAN ID DARI ADMIN? (Untuk Proses Pesanan Online)
+        $draftId = $request->query('id');
+        $draftData = null;
+        $nextId = null;
+
+        if ($draftId) {
+            // Ambil data transaksi online + Relasi untuk hitung stok
+            $transaksi = Transaksi::with([
+                                    'details.produk.satuanDasar', 
+                                    'details.produk.produkKonversis.satuan',
+                                    'details.produk.stokMasukDetails', 
+                                    'details.produk.detailTransaksis'
+                                  ])
+                                  ->where('id_transaksi', $draftId)
+                                  ->first();
+
+            if ($transaksi && $transaksi->status_pesanan == 'diproses') {
+                // Format ulang item agar bisa dibaca oleh JavaScript Kasir
+                $items = $transaksi->details->map(function($item) {
+                    
+                    $produk = $item->produk;
+                    
+                    // --- PERBAIKAN: HITUNG STOK REALTIME DI SINI ---
+                    $satuan_dasar = $produk->satuanDasar->nama_satuan ?? 'PCS';
+                    
+                    // Hitung Masuk
+                    $masuk = 0;
+                    foreach ($produk->stokMasukDetails as $d) {
+                        $jml = $d->jumlah;
+                        if ($d->satuan !== $satuan_dasar) {
+                            $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                            if ($konv) $jml *= $konv->nilai_konversi;
+                        }
+                        $masuk += $jml;
+                    }
+
+                    // Hitung Keluar
+                    $keluar = 0;
+                    foreach ($produk->detailTransaksis as $d) {
+                        $jml = $d->jumlah;
+                        if ($d->satuan !== $satuan_dasar) {
+                            $konv = $produk->produkKonversis->firstWhere('satuan.nama_satuan', $d->satuan);
+                            if ($konv) $jml *= $konv->nilai_konversi;
+                        }
+                        $keluar += $jml;
+                    }
+                    
+                    $stok_real = $masuk - $keluar;
+                    $stok_formatted = number_format($stok_real, 0, ',', '.');
+                    // -----------------------------------------------
+
+                    // Siapkan Opsi Satuan (Lengkap dengan Stok)
+                    $opsiSatuan = [];
+                    $opsiSatuan[] = [
+                        'id'    => $produk->id_satuan_dasar,
+                        'nama'  => $satuan_dasar,
+                        'harga' => $produk->harga_jual_dasar,
+                        'stok'  => $stok_formatted // <--- INI SOLUSINYA
+                    ];
+                    
+                    foreach($produk->produkKonversis as $konv) {
+                        $opsiSatuan[] = [
+                            'id'    => $konv->id_satuan_konversi,
+                            'nama'  => $konv->satuan->nama_satuan,
+                            'harga' => $konv->harga_jual_konversi,
+                            'stok'  => $stok_formatted
+                        ];
+                    }
+
+                    // Cari ID Satuan yang terpilih
+                    $currentSatuanId = null;
+                    foreach($opsiSatuan as $opt) {
+                        if ($opt['nama'] == $item->satuan) {
+                            $currentSatuanId = $opt['nama']; // Gunakan Nama sebagai ID agar konsisten dengan create.blade
+                            break;
+                        }
+                    }
+                    if (!$currentSatuanId && count($opsiSatuan) > 0) {
+                        $currentSatuanId = $opsiSatuan[0]['nama'];
+                    }
+
+                    return [
+                        'id_temp'         => rand(1000,9999),
+                        'id_produk_final' => $item->id_produk,
+                        'id_produk'       => $item->id_produk,
+                        'kode_item'       => $item->id_produk,
+                        'nama_barang'     => $produk->nama_produk,
+                        'qty'             => $item->jumlah,
+                        'id_satuan'       => $currentSatuanId,
+                        'satuan'          => $item->satuan,
+                        'harga'           => $item->harga_satuan,
+                        'subtotal'        => $item->subtotal,
+                        'opsi_satuan'     => $opsiSatuan,
+                    ];
+                });
+
+                $draftData = [
+                    'id_transaksi'   => $transaksi->id_transaksi,
+                    'pelanggan_id'   => $transaksi->id_user_pelanggan,
+                    'nama_pelanggan' => $transaksi->nama_pelanggan,
+                    'items'          => $items
+                ];
+
+                $nextId = $transaksi->id_transaksi;
+            }
+        } 
+        
+        if (!$nextId) {
+            $today = date('ymd');
+            $count = Transaksi::whereDate('created_at', date('Y-m-d'))->count() + 1;
+            $random = str_pad($count, 3, '0', STR_PAD_LEFT) . rand(10, 99);
+            $nextId = "TRX-{$today}-{$random}";
+        }
+
+        return view('kasir.transaksi.create', compact('nextId', 'pelanggans', 'draftData'));
     }
 
-    // API untuk pencarian produk di kasir (Scan Barcode)
+    // API Cari Produk (Saya biarkan sesuai punya Anda, sudah benar)
     public function cariProduk(Request $request)
     {
         $search = $request->query('search');
@@ -92,7 +204,6 @@ class TransaksiController extends Controller
             $stok_saat_ini_pcs = $total_stok_masuk_pcs - $total_stok_keluar_pcs;
             // -----------------------------------------------------
 
-
             // 2. Format Hasil untuk Pilihan Satuan Dasar (PCS)
             $hasil[] = [
                 'unique_id' => $produk->id_produk . '-' . $produk->id_satuan_dasar,
@@ -125,64 +236,67 @@ class TransaksiController extends Controller
         
         return response()->json($hasil);
     }
+   
+
+
     public function store(Request $request)
     {
-        // 1. Validasi Input
         $request->validate([
+            'id_transaksi' => 'required',
             'total_harga'  => 'required|numeric',
-            'bayar'        => 'required|numeric|gte:total_harga', // Bayar harus >= Total
-            'kembalian'    => 'required|numeric',
-            'items'        => 'required|array|min:1', // Harus ada barang
-            'items.*.id_produk' => 'required|exists:produk,id_produk',
-            'items.*.qty'       => 'required|integer|min:1',
-            'items.*.satuan'    => 'required|string', // Nama Satuan (PCS/DUS)
-            'items.*.id_satuan' => 'required',
+            'bayar'        => 'required|numeric|gte:total_harga',
+            'items'        => 'required|array|min:1', 
         ]);
 
         try {
             DB::beginTransaction();
 
-            // 2. GENERATE ID TRANSAKSI KHUSUS (Format: 0001/KSR/1125)
-            // Hitung jumlah transaksi bulan ini untuk nomor urut
-            $count = Transaksi::whereMonth('waktu_transaksi', date('m'))
-                              ->whereYear('waktu_transaksi', date('Y'))
-                              ->count();
-            
-            $no_urut = str_pad($count + 1, 4, '0', STR_PAD_LEFT); // 0001, 0002, dst
-            $bulanTahun = date('my'); // 1125 (Nov 2025)
-            $id_transaksi_fix = "{$no_urut}/KSR/{$bulanTahun}";
+            // Cek Update atau Baru
+            $transaksi = Transaksi::where('id_transaksi', $request->id_transaksi)->first();
 
-            // 3. Simpan Header Transaksi
-            $transaksi = Transaksi::create([
-                'id_transaksi'      => $id_transaksi_fix,
-                'id_user_kasir'     => Auth::id(),
-                'id_user_pelanggan' => null, 
-                'nama_kasir'        => Auth::user()->nama,
-                'nama_pelanggan'    => 'UMUM', 
-                
-                // --- PERBAIKAN DI SINI ---
-                'tanggal_transaksi' => date('Y-m-d'), // Isi tanggal hari ini
-                'waktu_transaksi'   => now(),         // Isi waktu lengkap
-                // -------------------------
+            if ($transaksi) {
+                // UPDATE PESANAN ONLINE
+                $transaksi->update([
+                    'id_user_kasir'     => Auth::id(),
+                    'nama_kasir'        => Auth::user()->nama,
+                    'total_harga'       => $request->total_harga,
+                    'bayar'             => $request->bayar,
+                    'kembalian'         => $request->kembalian,
+                    'status_pesanan'    => 'selesai',
+                    
+                    // Update Waktu
+                    'waktu_transaksi'   => now(),
+                    'tanggal_transaksi' => date('Y-m-d'),
+                    'metode_bayar'      => 'cash', 
+                ]);
+            } else {
+                // BARU (OFFLINE)
+                $transaksi = Transaksi::create([
+                    'id_transaksi'      => $request->id_transaksi,
+                    'id_user_kasir'     => Auth::id(),
+                    'nama_kasir'        => Auth::user()->nama,
+                    'id_user_pelanggan' => $request->id_pelanggan, 
+                    'nama_pelanggan'    => $request->nama_pelanggan ?? 'UMUM',
+                    'waktu_transaksi'   => now(),
+                    'tanggal_transaksi' => date('Y-m-d'),
+                    'total_harga'       => $request->total_harga,
+                    'bayar'             => $request->bayar,
+                    'kembalian'         => $request->kembalian,
+                    'jenis_transaksi'   => 'offline',
+                    'status_pesanan'    => 'selesai',
+                    'metode_bayar'      => 'cash',
+                ]);
+            }
 
-                'total_harga'       => $request->total_harga,
-                'bayar'             => $request->bayar,
-                'kembalian'         => $request->kembalian,
-                'jenis_transaksi'   => 'offline',
-                'tipe_transaksi'    => 'penjualan',
-                'status_pesanan'    => 'selesai',
-                'metode_bayar'      => 'cash',
-            ]);
+            // Timpa Detail
+            $transaksi->details()->delete();
 
-            // 4. Simpan Detail Transaksi (Barang-barangnya)
-            // INILAH YANG AKAN MENGURANGI STOK SECARA OTOMATIS DI SISTEM
             foreach ($request->items as $item) {
                 DetailTransaksi::create([
                     'id_transaksi' => $transaksi->id_transaksi,
                     'id_produk'    => $item['id_produk'],
                     'jumlah'       => $item['qty'],
-                    'id_satuan'    => $item['id_satuan'], // Simpan ID
-                    'satuan'       => $item['satuan'],    // Simpan Nama juga (sebagai backup)
+                    'satuan'       => $item['satuan'],
                     'harga_satuan' => $item['harga'],
                     'subtotal'     => $item['subtotal'],
                 ]);
@@ -190,49 +304,46 @@ class TransaksiController extends Controller
 
             DB::commit();
 
+            // Notifikasi (Email & Web)
+            if ($transaksi->pelanggan) {
+                try {
+                     $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
+                } catch (\Exception $e) {}
+
+                if ($transaksi->pelanggan->email) {
+                    try {
+                        Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
+                    } catch (\Exception $e) {}
+                }
+            }
+
             return response()->json([
-                'success' => true,
-                'message' => 'Transaksi berhasil!',
+                'success' => true, 
+                'message' => 'Transaksi berhasil!', 
                 'id_transaksi' => $transaksi->id_transaksi
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menyimpan: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
     public function riwayat(Request $request)
     {
         $query = Transaksi::with('kasir')
-                    ->where('tipe_transaksi', 'penjualan')
-                    ->where('status_pesanan', 'selesai')
-                    ->orderBy('created_at', 'desc'); 
+                          ->where('status_pesanan', 'selesai')
+                          ->orderBy('created_at', 'desc'); 
 
-        // --- LOGIKA FILTER TANGGAL ---
-        
-        // A. Jika User Memilih Tanggal Sendiri (Bisa lihat data lama)
         if ($request->filled('tanggal_mulai') && $request->filled('tanggal_akhir')) {
-            $query->whereBetween('tanggal_transaksi', [
-                $request->tanggal_mulai, 
-                $request->tanggal_akhir
-            ]);
-        } 
-        // B. DEFAULT: Jika tidak ada filter, hanya tampilkan 2x24 Jam (2 Hari Terakhir)
-        else {
+            $query->whereBetween('tanggal_transaksi', [$request->tanggal_mulai, $request->tanggal_akhir]);
+        } else {
             $duaHariLalu = \Carbon\Carbon::now()->subDays(1)->format('Y-m-d');
-            // Ambil transaksi dari 2 hari lalu sampai sekarang
             $query->whereDate('tanggal_transaksi', '>=', $duaHariLalu);
         }
-        // -----------------------------
 
-        // Filter Pencarian (ID Transaksi) - Tetap bisa mencari di luar tanggal default
         if ($request->filled('search')) {
             $search = $request->search;
-            
-            // Gunakan grouping function($q) agar logika AND/OR tidak bocor ke filter lain
             $query->where(function($q) use ($search) {
                 $q->where('id_transaksi', 'like', '%' . $search . '%')
                   ->orWhere('nama_pelanggan', 'like', '%' . $search . '%');
@@ -242,7 +353,6 @@ class TransaksiController extends Controller
         $riwayat = $query->paginate(10);
         $riwayat->appends($request->all());
 
-        // AJAX Response (Infinite Scroll)
         if ($request->ajax()) {
             return response()->json([
                 'html' => view('kasir.transaksi.riwayat_body', compact('riwayat'))->render(),
@@ -252,27 +362,20 @@ class TransaksiController extends Controller
 
         return view('kasir.transaksi.riwayat', compact('riwayat'));
     }
-    // Ambil Detail Transaksi (JSON untuk Modal)
+
     public function show(Request $request)
     {
-        // Ambil ID dari parameter ?id=...
-        $id = $request->query('id'); 
-        
+        $id = $request->query('id');
         if (!$id) return response()->json(['error' => 'ID tidak ditemukan'], 404);
 
         $transaksi = Transaksi::with(['details.produk', 'kasir'])->where('id_transaksi', $id)->firstOrFail();
         return response()->json($transaksi);
     }
 
-    // Cetak Struk (Tampilan HTML Khusus Print)
-   public function cetak(Request $request)
+    public function cetak(Request $request)
     {
-        // Ambil ID dari parameter ?id=...
         $id = $request->query('id');
-
         $transaksi = Transaksi::with(['details.produk', 'kasir'])->where('id_transaksi', $id)->firstOrFail();
         return view('kasir.transaksi.struk', compact('transaksi'));
     }
-    
-    // Fungsi Store akan kita buat setelah View selesai
 }

@@ -277,15 +277,28 @@
     <script>
         function transaksiKasir() {
             return {
-                barisTabel: [], activeRow: 0,
-                modalBayarOpen: false, modalPencarianOpen: false, searchResultsModal: [], activeModalIndex: 0,
+                barisTabel: @json(isset($draftData) && $draftData ? $draftData['items'] : []), // <--- PERUBAHAN UTAMA
+                id_transaksi: "{{ $nextId }}",
+                id_pelanggan: "{{ isset($draftData) ? $draftData['pelanggan_id'] : '' }}", // <--- PERUBAHAN
+
+                activeRow: 0,modalBayarOpen: false, modalPencarianOpen: false, searchResultsModal: [], activeModalIndex: 0,
                 barisYangSedangDiisi: null, uangDiterima: '', kembalian: 0, modalHapusOpen: false, indexBarisHapus: null, namaBarangHapus: '',
                 isProcessing: false,
 
                 searchQueryModal: '',
 
                 init() {
-                    this.tambahBarisBaru();
+                    if (this.barisTabel.length === 0) { // <--- PERUBAHAN LOGIKA
+                        this.tambahBarisBaru();
+                    }
+                    else {
+                        this.barisTabel.forEach(baris => {
+                            baris.qty = parseFloat(baris.qty) || 0;
+                            baris.harga = parseFloat(baris.harga) || 0;
+                            baris.subtotal = parseFloat(baris.subtotal) || 0;
+                        });
+                    }
+                    
                 },
                 async searchProdukInModal() {
                     if (this.searchQueryModal.length < 2) return;
@@ -351,7 +364,7 @@
                     // Validasi Stok
                     const opsi = baris.opsi_satuan.find(o => o.id == baris.id_satuan);
                     if (opsi) {
-                        let stokStr = opsi.stok.toString(); 
+                        let stokStr = opsi.stok ? opsi.stok.toString() : '0';
                         let stokTersedia = parseFloat(stokStr.replace(/\./g, '').replace(',', '.'));
 
                         if (qtyInput > stokTersedia) {
@@ -366,14 +379,16 @@
 
                 hitungSubtotal(index) {
                     const baris = this.barisTabel[index];
-                    let qty = parseInt(baris.qty) || 0;
-                    baris.subtotal = qty * baris.harga;
+                    let qty = parseFloat(baris.qty) || 0;
+                    let harga = parseFloat(baris.harga) || 0;
+                    baris.subtotal = qty * harga;
                 },
 
                 // --- PERBAIKAN TOTAL BAYAR DI SINI ---
                 get grandTotal() {
-                    // Sebelumnya salah panggil variabel 'item', sekarang sudah benar 'baris'
-                    return this.barisTabel.reduce((sum, baris) => sum + (baris.subtotal || 0), 0);
+                    return this.barisTabel.reduce((sum, baris) => {
+                        return sum + (parseFloat(baris.subtotal) || 0);
+                    }, 0);
                 },
                 // -------------------------------------
 
@@ -466,7 +481,7 @@
                     const payload = {
                         id_pelanggan: this.id_pelanggan, 
                         
-                        id_transaksi: "{{ $nextId }}", 
+                        id_transaksi: this.id_transaksi, 
                         total_harga: this.grandTotal, 
                         bayar: this.uangDiterima, 
                         kembalian: this.kembalian, 
