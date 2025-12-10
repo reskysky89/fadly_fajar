@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/pesanan-online', [PesananOnlineController::class, 'index'])->name('pesanan.index');
+    Route::get('/pesanan-online/{id}/picking-list', [PesananOnlineController::class, 'cetakPickingList'])->name('pesanan.picking');
     Route::get('/pesanan-online/{id}/proses', [PesananOnlineController::class, 'edit'])->name('pesanan.edit');
     Route::put('/pesanan-online/{id}/selesai-proses', [PesananOnlineController::class, 'update'])->name('pesanan.update');
     // Route::put('/pesanan-online/{id}/selesai', [PesananOnlineController::class, 'selesaikan'])->name('pesanan.selesai');

@@ -32,57 +32,7 @@ class PesananOnlineController extends Controller
 
         return view('admin.pesanan.index', compact('pesananBaru', 'riwayatSelesai'));
     }
-    // Fungsi untuk Menyelesaikan Pesanan (Terima Bayaran)
-    // public function selesaikan(Request $request, $id)
-    // {
-    //     $request->validate([
-    //         'bayar' => 'required|numeric',
-    //     ]);
 
-    //     $transaksi = Transaksi::where('id_transaksi', $id)->firstOrFail();
-
-    //     if ($request->bayar < $transaksi->total_harga) {
-    //         return back()->with('error', 'Uang pembayaran kurang!');
-    //     }
-
-    //     try {
-    //         DB::beginTransaction();
-
-    //         $transaksi->update([
-    //             'status_pesanan' => 'selesai',
-    //             'id_user_kasir'  => Auth::id(), 
-    //             'nama_kasir'     => Auth::user()->nama,
-    //             'bayar'          => $request->bayar,
-    //             'kembalian'      => $request->bayar - $transaksi->total_harga,
-                
-    //             // --- HAPUS BARIS DI BAWAH INI ---
-    //             // 'waktu_transaksi'=> now(), 
-    //             // --------------------------------
-    //             // Biarkan waktu transaksi tetap sesuai saat pelanggan checkout.
-    //         ]);
-
-    //         DB::commit();
-    //         if ($transaksi->pelanggan && $transaksi->pelanggan->email) {
-    //             try {
-    //                 Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
-    //             } catch (\Exception $e) {
-    //                 // Email gagal? Biarkan saja, jangan gagalkan transaksi.
-    //                 // Cukup log error-nya jika perlu.
-    //             }
-    //         }
-
-    //         if ($transaksi->pelanggan) {
-    //             $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
-    //         }
-    //         // -----------------------------------------------
-
-    //         return back()->with('success', 'Pesanan selesai! Notifikasi email & website terkirim.');
-
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         return back()->with('error', 'Gagal memproses: ' . $e->getMessage());
-    //     }
-    // }
     public function edit($id)
     {
         $transaksi = Transaksi::with(['details.produk.satuanDasar', 'details.produk.produkKonversis.satuan'])
@@ -176,5 +126,13 @@ class PesananOnlineController extends Controller
         $transaksi->details()->delete(); 
 
         return back()->with('success', 'Pesanan telah dibatalkan dan stok dikembalikan.');
+    }
+    public function cetakPickingList($id)
+    {
+        $transaksi = Transaksi::with(['pelanggan', 'details.produk'])
+                              ->where('id_transaksi', $id)
+                              ->firstOrFail();
+
+        return view('admin.pesanan.picking_list', compact('transaksi'));
     }
 }
