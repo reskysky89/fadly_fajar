@@ -253,6 +253,15 @@ class TransaksiController extends Controller
 
             // Cek Update atau Baru
             $transaksi = Transaksi::where('id_transaksi', $request->id_transaksi)->first();
+            $namaPelanggan = 'UMUM';
+            $idPelanggan = $request->id_pelanggan;
+
+            if ($idPelanggan) {
+                $userMember = User::find($idPelanggan);
+                if ($userMember) {
+                    $namaPelanggan = $userMember->nama;
+                }
+            }
 
             if ($transaksi) {
                 // UPDATE PESANAN ONLINE
@@ -276,7 +285,7 @@ class TransaksiController extends Controller
                     'id_user_kasir'     => Auth::id(),
                     'nama_kasir'        => Auth::user()->nama,
                     'id_user_pelanggan' => $request->id_pelanggan, 
-                    'nama_pelanggan'    => $request->nama_pelanggan ?? 'UMUM',
+                    'nama_pelanggan'    => $namaPelanggan,
                     'waktu_transaksi'   => now(),
                     'tanggal_transaksi' => date('Y-m-d'),
                     'total_harga'       => $request->total_harga,
@@ -305,11 +314,14 @@ class TransaksiController extends Controller
             DB::commit();
 
             // Notifikasi (Email & Web)
-            if ($transaksi->pelanggan) {
+            if ($transaksi->jenis_transaksi == 'online' && $transaksi->pelanggan) {
+                
+                // Kirim Lonceng Website
                 try {
                      $transaksi->pelanggan->notify(new PesananSelesaiNotification($transaksi));
                 } catch (\Exception $e) {}
 
+                // Kirim Email
                 if ($transaksi->pelanggan->email) {
                     try {
                         Mail::to($transaksi->pelanggan->email)->send(new PesananSelesaiMail($transaksi));
