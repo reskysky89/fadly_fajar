@@ -224,8 +224,45 @@
                 // --- TAMBAHAN: Variable Search Modal ---
                 searchQueryModal: '', 
 
-                init() { this.tambahBarisBaru(); },
+                init() {
+                    // 1. Cek Draft di LocalStorage
+                    const draft = localStorage.getItem('draft_stok_masuk');
+                    
+                    if (draft) {
+                        // 2. Kalau ada, isi form dengan data draft
+                        const data = JSON.parse(draft);
+                        this.id_supplier = data.id_supplier;
+                        this.tanggal_masuk = data.tanggal_masuk;
+                        this.keterangan = data.keterangan;
+                        this.barisTabel = data.barisTabel;
+                        
+                        // Atur baris aktif ke yang terakhir
+                        if (this.barisTabel.length > 0) {
+                            this.activeRow = this.barisTabel.length - 1;
+                        } else {
+                            this.tambahBarisBaru();
+                        }
+                    } else {
+                        // 3. Kalau tidak ada draft, baru bikin baris kosong
+                        this.tambahBarisBaru();
+                    }
 
+                    // 4. Pasang CCTV (Watcher) untuk Simpan Otomatis
+                    // Setiap kali variable ini berubah, simpan ke LocalStorage
+                    this.$watch('id_supplier', () => this.simpanDraft());
+                    this.$watch('tanggal_masuk', () => this.simpanDraft());
+                    this.$watch('keterangan', () => this.simpanDraft());
+                    this.$watch('barisTabel', () => this.simpanDraft());
+                },
+                simpanDraft() {
+                    const data = {
+                        id_supplier: this.id_supplier,
+                        tanggal_masuk: this.tanggal_masuk,
+                        keterangan: this.keterangan,
+                        barisTabel: this.barisTabel
+                    };
+                    localStorage.setItem('draft_stok_masuk', JSON.stringify(data));
+                },
                 handleGlobalKey(e) {
                     if (this.modalPencarianOpen) {
                         if (e.key === 'ArrowDown') { e.preventDefault(); this.navigasiModal('bawah'); }
@@ -310,11 +347,17 @@
                 konfirmasiBatal() { Swal.fire({ title: 'Batalkan Input?', text: "Semua data yang diisi akan hilang.", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: 'Ya, Batalkan', cancelButtonText: 'Tidak' }).then((result) => { if (result.isConfirmed) { window.location.href = "{{ route('admin.stok.index') }}"; } }); },
                 konfirmasiSimpan() { if (this.barisTabel.filter(b => b.id_produk_final).length === 0) { Swal.fire('Kosong', 'Belum ada barang yang diinput.', 'warning'); return; } Swal.fire({ title: 'Proses Stok Masuk', text: "Pilih aksi penyimpanan:", icon: 'question', showDenyButton: true, showCancelButton: true, confirmButtonColor: '#3085d6', denyButtonColor: '#28a745', cancelButtonColor: '#6c757d', confirmButtonText: 'Simpan Saja', denyButtonText: 'Simpan & Cetak Bukti', cancelButtonText: 'Batal' }).then((result) => { if (result.isConfirmed) { this.simpanStok(false); } else if (result.isDenied) { this.simpanStok(true); } }); },
 
-                async simpanStok(cetakBukti) { if (this.isProcessing) return; this.isProcessing = true; Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const items = this.barisTabel.filter(b => b.id_produk_final).map(item => ({ id_produk: item.id_produk_final, jumlah: item.qty, id_satuan: item.id_satuan, nama_satuan: item.opsi_satuan.find(o => o.id == item.id_satuan)?.nama || 'PCS', harga_beli_satuan: item.harga })); if (items.length === 0) { alert('Belum ada barang!'); this.isProcessing = false; return; } const payload = { id_supplier: this.id_supplier, tanggal_masuk: this.tanggal_masuk, keterangan: this.keterangan, detail: items, cetak: cetakBukti }; try { const response = await fetch("{{ route('admin.stok.store') }}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify(payload) }); if (response.ok || response.redirected) { window.location.href = "{{ route('admin.stok.index') }}"; } else { const result = await response.json(); Swal.fire('Gagal', (result.message || 'Terjadi kesalahan validasi'), 'error'); this.isProcessing = false; } } catch (error) { window.location.href = "{{ route('admin.stok.index') }}"; } },
+                async simpanStok(cetakBukti) { if (this.isProcessing) return; this.isProcessing = true; Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } }); const items = this.barisTabel.filter(b => b.id_produk_final).map(item => ({ id_produk: item.id_produk_final, jumlah: item.qty, id_satuan: item.id_satuan, nama_satuan: item.opsi_satuan.find(o => o.id == item.id_satuan)?.nama || 'PCS', harga_beli_satuan: item.harga })); if (items.length === 0) { alert('Belum ada barang!'); this.isProcessing = false; return; } const payload = { id_supplier: this.id_supplier, tanggal_masuk: this.tanggal_masuk, keterangan: this.keterangan, detail: items, cetak: cetakBukti }; try { const response = await fetch("{{ route('admin.stok.store') }}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify(payload) }); if (response.ok || response.redirected) { localStorage.removeItem('draft_stok_masuk'); window.location.href = "{{ route('admin.stok.index') }}"; } else { const result = await response.json(); Swal.fire('Gagal', (result.message || 'Terjadi kesalahan validasi'), 'error'); this.isProcessing = false; } } catch (error) { window.location.href = "{{ route('admin.stok.index') }}"; } },
 
                 formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka); }
             }
         }
+        document.addEventListener('DOMContentLoaded', function() {
+            @if(session('success'))
+                // Jika controller mengirim pesan sukses, hapus draft biar bersih
+                localStorage.removeItem('draft_stok_masuk');
+            @endif
+        });
     </script>
     @endpush
 </x-app-layout>

@@ -352,17 +352,66 @@
                 searchQueryModal: '',
 
                 init() {
-                    if (this.barisTabel.length === 0) { // <--- PERUBAHAN LOGIKA
-                        this.tambahBarisBaru();
+                    // 1. Cek Apakah Ada Draft di Browser?
+                    const draft = localStorage.getItem('kasir_draft_v1');
+
+                    if (draft) {
+                        try {
+                            const data = JSON.parse(draft);
+                            // Kembalikan Data Pelanggan
+                            this.id_pelanggan = data.id_pelanggan || '';
+                            this.searchPelanggan = data.searchPelanggan || 'UMUM';
+                            
+                            // Kembalikan Barang Belanjaan
+                            this.barisTabel = data.barisTabel || [];
+                            
+                            // Pastikan angka terbaca sebagai angka (bukan string)
+                            this.barisTabel.forEach(baris => {
+                                baris.qty = parseFloat(baris.qty) || 0;
+                                baris.harga = parseFloat(baris.harga) || 0;
+                                baris.subtotal = parseFloat(baris.subtotal) || 0;
+                            });
+
+                            // Jika draft kosong (aneh), buat baris baru
+                            if (this.barisTabel.length === 0) this.tambahBarisBaru();
+                            
+                            // Set baris aktif ke yang paling bawah
+                            this.activeRow = this.barisTabel.length - 1;
+
+                        } catch (e) {
+                            console.error("Draft rusak, reset form", e);
+                            localStorage.removeItem('kasir_draft_v1');
+                            this.tambahBarisBaru();
+                        }
+                    } else {
+                        // 2. Jika Tidak Ada Draft, Cek Data dari Controller (DraftData) atau Bikin Baru
+                        if (this.barisTabel.length === 0) {
+                            this.tambahBarisBaru();
+                        } else {
+                            // Logic lama untuk handle data dari server (jika ada)
+                            this.barisTabel.forEach(baris => {
+                                baris.qty = parseFloat(baris.qty) || 0;
+                                baris.harga = parseFloat(baris.harga) || 0;
+                                baris.subtotal = parseFloat(baris.subtotal) || 0;
+                            });
+                        }
                     }
-                    else {
-                        this.barisTabel.forEach(baris => {
-                            baris.qty = parseFloat(baris.qty) || 0;
-                            baris.harga = parseFloat(baris.harga) || 0;
-                            baris.subtotal = parseFloat(baris.subtotal) || 0;
-                        });
-                    }
-                    
+
+                    // 3. PASANG CCTV (Watcher)
+                    // Apapun yang berubah, simpan ke LocalStorage
+                    this.$watch('barisTabel', () => this.simpanDraft());
+                    this.$watch('id_pelanggan', () => this.simpanDraft());
+                    this.$watch('searchPelanggan', () => this.simpanDraft());
+                },
+
+                // FUNGSI PEMBANTU SIMPAN DRAFT
+                simpanDraft() {
+                    const data = {
+                        barisTabel: this.barisTabel,
+                        id_pelanggan: this.id_pelanggan,
+                        searchPelanggan: this.searchPelanggan
+                    };
+                    localStorage.setItem('kasir_draft_v1', JSON.stringify(data));
                 },
                 async searchProdukInModal() {
                     if (this.searchQueryModal.length < 2) return;
@@ -565,6 +614,7 @@
                         const response = await fetch("{{ route('kasir.transaksi.store') }}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify(payload) });
                         const result = await response.json();
                         if (result.success) { 
+                            localStorage.removeItem('kasir_draft_v1');
                             let msg = 'Transaksi Berhasil!';
                             if (cetakStruk) msg += '\n(Mencetak Struk...)';
                             alert(msg); 
@@ -576,7 +626,7 @@
                     } catch (error) { console.error(error); alert('Terjadi kesalahan sistem.'); this.isProcessing = false; }
                 },
                 
-                resetForm() { if(confirm('Hapus semua?')) { this.barisTabel = []; this.tambahBarisBaru(); } },
+                resetForm() { if(confirm('Hapus semua?')) { localStorage.removeItem('kasir_draft_v1'); this.barisTabel = []; this.tambahBarisBaru(); } },
                 formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0 }).format(angka); },
                 parseStokString(str) { return parseFloat(str.toString().replace(/\./g, '').replace(',', '.')) || 0; }
             }
