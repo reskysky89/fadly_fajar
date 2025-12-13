@@ -11,7 +11,7 @@ export default defineConfig({
     // server: {
     //     host: '0.0.0.0', // Membuka akses ke jaringan
     //     hmr: {
-    //         host: '192.168.1.20', // <--- GANTI DENGAN IP ASLI LAPTOP ANDA
+    //         host: '192.168.1.64', // <--- GANTI DENGAN IP ASLI LAPTOP ANDA
     //     },
     // },
     

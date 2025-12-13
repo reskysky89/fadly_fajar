@@ -22,14 +22,46 @@
                         <label class="block text-xs text-gray-500 uppercase font-bold">No. Transaksi</label>
                         <div class="font-mono font-bold text-lg text-gray-800 dark:text-gray-200 bg-gray-50 p-2 rounded border">{{ $nextId }}</div>
                     </div>
-                    <div>
+                    <div class="relative">
                         <label class="block text-xs text-gray-500 uppercase font-bold">Pelanggan</label>
-                        <select x-model="id_pelanggan" class="w-full font-bold bg-gray-50 border-gray-300 rounded text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]">
-                            <option value="">UMUM </option>
-                            @foreach($pelanggans as $pelanggan)
-                                <option value="{{ $pelanggan->id_user }}">{{ $pelanggan->nama }}</option>
-                            @endforeach
-                        </select>
+                        
+                        {{-- Input Text --}}
+                        <input type="text" 
+                               x-model="searchPelanggan"
+                               @focus="if(searchPelanggan === 'UMUM') searchPelanggan = ''; showListPelanggan = true;"
+                               @click.away="setTimeout(() => { showListPelanggan = false; if(searchPelanggan === '') { searchPelanggan = 'UMUM'; id_pelanggan = ''; } }, 200)"
+                               @keydown.escape="showListPelanggan = false"
+                               class="w-full font-bold bg-gray-50 border-gray-300 rounded text-gray-800 text-sm focus:ring-blue-500 focus:border-blue-500 h-[42px]"
+                               placeholder="Cari Pelanggan..."
+                               autocomplete="off">
+
+                        {{-- Hidden Input ID --}}
+                        <input type="hidden" x-model="id_pelanggan">
+
+                        {{-- Dropdown List --}}
+                        <div x-show="showListPelanggan" 
+                             class="absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto mt-1"
+                             style="display: none;" x-transition x-cloak>
+                            
+                            {{-- Pilihan Default UMUM --}}
+                            <div @click="pilihPelanggan('', 'UMUM')" 
+                                 class="px-4 py-2 hover:bg-blue-100 cursor-pointer font-bold text-blue-600 border-b">
+                                UMUM (Tanpa Member)
+                            </div>
+
+                            {{-- List Pelanggan --}}
+                            <template x-for="p in filteredPelanggan" :key="p.id"> {{-- Pakai p.id --}}
+                                <div @click="pilihPelanggan(p.id, p.nama)" {{-- Pakai p.id --}}
+                                     class="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm text-gray-700 border-b last:border-0">
+                                    <span x-text="p.nama" class="font-bold block py-1"></span>
+                                </div>
+                            </template>
+                            
+                            {{-- Jika Tidak Ada Hasil --}}
+                            <div x-show="filteredPelanggan.length === 0 && listPelanggan.length > 0" class="px-4 py-3 text-sm text-red-500 text-center">
+                                Nama tidak ditemukan.
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs text-gray-500 uppercase font-bold">Kasir</label>
@@ -279,8 +311,40 @@
             return {
                 barisTabel: @json(isset($draftData) && $draftData ? $draftData['items'] : []), // <--- PERUBAHAN UTAMA
                 id_transaksi: "{{ $nextId }}",
-                id_pelanggan: "{{ isset($draftData) ? $draftData['pelanggan_id'] : '' }}", // <--- PERUBAHAN
+                id_pelanggan: "{{ isset($draftData) ? $draftData['pelanggan_id'] : '' }}",
+                searchPelanggan: "{{ isset($draftData) ? $draftData['nama_pelanggan'] : 'UMUM' }}",
+                listPelanggan: @json($pelanggans).map(p => {
+                    return {
+                        id: p.id || p.id_user,      // Jaga-jaga beda nama kolom ID
+                        nama: p.nama || p.name,     // Jaga-jaga beda nama kolom (name vs nama)
+                        email: p.email || ''
+                    };
+                }),
+                showListPelanggan: false,
+                get filteredPelanggan() {
+                    // Ambil text pencarian & ubah ke huruf kecil semua biar pencarian tidak sensitif huruf besar
+                    let keyword = this.searchPelanggan.toLowerCase();
 
+                    // Jika Input Kosong atau Tulisan "UMUM", Tampilkan 5 Pelanggan Teratas
+                    if (keyword === '' || keyword === 'umum') {
+                        return this.listPelanggan.slice(0, 5);
+                    }
+
+                    // LOGIKA INTI: SEARCH ANYWHERE (DEPAN, TENGAH, BELAKANG)
+                    return this.listPelanggan.filter(p => {
+                        return p.nama.toLowerCase().includes(keyword); 
+                    }).slice(0, 5); // Tetap batasi 5 hasil saja biar rapi
+                },
+                pilihPelanggan(id, nama) {
+                    this.id_pelanggan = id;       
+                    this.searchPelanggan = nama;  
+                    this.showListPelanggan = false; 
+                },
+                // resetPelanggan() {
+                //     this.id_pelanggan = ''; 
+                //     this.searchPelanggan = 'UMUM';
+                //     this.showListPelanggan = false;
+                // },
                 activeRow: 0,modalBayarOpen: false, modalPencarianOpen: false, searchResultsModal: [], activeModalIndex: 0,
                 barisYangSedangDiisi: null, uangDiterima: '', kembalian: 0, modalHapusOpen: false, indexBarisHapus: null, namaBarangHapus: '',
                 isProcessing: false,
