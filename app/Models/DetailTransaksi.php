@@ -21,6 +21,12 @@ class DetailTransaksi extends Model
         'harga_satuan', // Harga JUAL saat transaksi terjadi
         'subtotal'
     ];
+    public function transaksi()
+    {
+        // belongsTo artinya: "Detail ini MILIK satu Transaksi"
+        // Parameter: (Model Tujuan, Key Penghubung di tabel ini, Key Utama di tabel sana)
+        return $this->belongsTo(Transaksi::class, 'id_transaksi', 'id_transaksi');
+    }
 
     public function produk(): BelongsTo
     {

@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProdukController;
 use App\Http\Controllers\Admin\SatuanController;
 use App\Http\Controllers\ProfileController;
@@ -61,9 +61,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     
     // Rute: /admin/dashboard
     // Nama Rute: admin.dashboard
-    Route::get('/dashboard', function () {
-        return view('admin.dashboard'); // <-- Memanggil file view yang cantik
-    })->name('dashboard');
+    // Route::get('/dashboard', function () {
+    //     return view('admin.dashboard'); // <-- Memanggil file view yang cantik
+    // })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/api/supplier-analysis', [DashboardController::class, 'getSupplierAnalysis'])
+    ->name('api.supplierAnalysis');
 
     // Tambahkan rute admin lainnya (kelola produk, laporan, dll) di sini
     // Ini akan otomatis membuat 7 rute CRUD untuk produk
